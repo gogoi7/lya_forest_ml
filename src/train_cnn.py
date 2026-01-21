@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score
 import numpy as np
 
 from data_loader import load_data
-from models import LyaCNN
+from models import LyaResNet
 
 path0 = 'data/raw/EX0_spectra.hdf5'
 path1 = 'data/raw/EX1_spectra.hdf5'
@@ -45,14 +45,14 @@ print("DataLoaders created.")
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu") #Use Mac GPU
 print(f"Using device: {device}")
 
-model = LyaCNN().to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+model = LyaResNet().to(device)
+optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
-# scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3, verbose=True)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, verbose=True)
 criterion = nn.BCEWithLogitsLoss() #binary cross-entropy with logits
 
 # Training loop
-num_epochs = 30
+num_epochs = 50
 
 for epoch in range(num_epochs):
     model.train()
@@ -67,6 +67,12 @@ for epoch in range(num_epochs):
         optimizer.step()
         
         running_loss += loss.item() 
+    avg_loss = running_loss / len(train_loader)
+    scheduler.step(avg_loss)
+
+    if (epoch+1) % 5 == 0 or epoch == 0:
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}, LR: {current_lr:.2e}")
 
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}")
     model.eval()
