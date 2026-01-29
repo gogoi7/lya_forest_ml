@@ -30,8 +30,8 @@ def load_data(path0, path1):
     return X, y
 
 if __name__ == "__main__":
-    path0 = 'data/raw/EX0_spectra.hdf5'
-    path1 = 'data/raw/EX1_spectra.hdf5'
+    path0 = 'data/raw/snapshot_028_EX3.hdf5' #'data/raw/EX0_spectra.hdf5'
+    path1 = 'data/raw/snapshot_028_EX1.hdf5' #'data/raw/EX1_spectra.hdf5'
     X, y = load_data(path0, path1)
     #Check the shapes of the loaded data
     print("Data shape:", X.shape)
