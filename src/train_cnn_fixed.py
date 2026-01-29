@@ -28,7 +28,7 @@ X_raw, y_raw = load_data(path0, path1)
 print(f"Raw data shape: {X_raw.shape}")
 print(f"Raw tau stats - Min: {np.min(X_raw):.4f}, Max: {np.max(X_raw):.4f}, Mean: {np.mean(X_raw):.4f}, Std: {np.std(X_raw):.4f}")
 
-# Apply structural split (same as RF baseline to prevent data leakage)
+# Apply structural split (to prevent data leakage)
 print("\n[2/5] Applying structural train/test split...")
 LOS_p_sim = X_raw.shape[0] // 2
 uniq_idx = np.arange(LOS_p_sim)
