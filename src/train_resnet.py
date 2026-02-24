@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 from data_loader import load_data
 
 
-# --- 1. MODEL DEFINITION (Robust High-Res ResNet) ---
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super(ResidualBlock, self).__init__()

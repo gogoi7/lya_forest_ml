@@ -3,8 +3,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 
-path0 = 'data/raw/snapshot_028_EX3.hdf5' #'data/raw/EX0_spectra.hdf5'
-path1 = 'data/raw/snapshot_028_EX1.hdf5' #'data/raw/EX1_spectra.hdf5'
+path0 = 'data/raw/EX0_spectra.hdf5'
+path1 = 'data/raw/EX1_spectra.hdf5'
 X, y = load_data(path0, path1)
 
 # This fixes the issue of having identical LOS grid for both simulations
