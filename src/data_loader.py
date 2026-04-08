@@ -29,6 +29,21 @@ def load_data(path0, path1):
     
     return X, y
 
+def load_all_data(paths_list):
+    """
+    Load data from multiple files and assign integer labels 0, 1, 2...
+    """
+    X_list = []
+    y_list = []
+    for i, path in enumerate(paths_list):
+        with h5py.File(path, 'r') as f:
+            data = f['/tau/H/1/1215'][:]
+            X_list.append(data)
+            y_list.append(np.full(data.shape[0], i, dtype=int))
+    X = np.concatenate(X_list, axis=0)
+    y = np.concatenate(y_list, axis=0)
+    return X, y
+
 if __name__ == "__main__":
     path0 = 'data/raw/snapshot_028_EX3.hdf5' #'data/raw/EX0_spectra.hdf5'
     path1 = 'data/raw/snapshot_028_EX1.hdf5' #'data/raw/EX1_spectra.hdf5'
