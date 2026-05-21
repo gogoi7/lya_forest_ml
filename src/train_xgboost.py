@@ -29,7 +29,7 @@ def main():
     
     X_raw, y_raw = load_data(path0, path1)
     X_flux = np.exp(-X_raw)
-    
+       
     n_samples, n_pixels = X_flux.shape
     dv = calculate_dv(L_cMpc_h=25, z=0.1, n_pixels=n_pixels)
     print(f"Calculated dv: {dv:.4f} km/s per pixel.")
@@ -118,6 +118,77 @@ def main():
     joblib.dump(xgb_c, "xgb_model_compact.joblib")
     print("Final compact model saved.")
 
+    # 3. Experiment 9: XGBoost on Batched Input (Batch Size = 10)
+    print("\n--- Experiment 9: XGBoost on Batched Input (Batch Size = 10) ---")
+    batch_size = 10
+    
+    def create_batches(features, N_sim, batch_size):
+        # features is shape (2*N_sim, n_features)
+        # First N_sim is class 0, next N_sim is class 1
+        
+        features_class0 = features[:N_sim]
+        features_class1 = features[N_sim:]
+        
+        # Ensure divisible by batch_size
+        n_batches = N_sim // batch_size
+        
+        # Truncate to make perfectly divisible
+        features_class0 = features_class0[:n_batches * batch_size]
+        features_class1 = features_class1[:n_batches * batch_size]
+        
+        # Reshape to (n_batches, batch_size, n_features)
+        features_class0 = features_class0.reshape((n_batches, batch_size, -1))
+        features_class1 = features_class1.reshape((n_batches, batch_size, -1))
+        
+        # Calculate Mean and Std over the batch dimension (axis=1)
+        mean_0 = np.mean(features_class0, axis=1)
+        std_0 = np.std(features_class0, axis=1)
+        mean_1 = np.mean(features_class1, axis=1)
+        std_1 = np.std(features_class1, axis=1)
+        
+        # Concatenate mean and std to form the batched feature vector
+        X_batch_0 = np.concatenate([mean_0, std_0], axis=1)
+        X_batch_1 = np.concatenate([mean_1, std_1], axis=1)
+        
+        # Combine classes
+        X_batched = np.concatenate([X_batch_0, X_batch_1], axis=0)
+        y_batched = np.concatenate([np.zeros(n_batches), np.ones(n_batches)])
+        
+        return X_batched, y_batched
+    
+    X_batched, y_batched = create_batches(features_compact, N_sim, batch_size)
+    print(f"Batched feature shape: {X_batched.shape}")
+    
+    # Train test split on batched data
+    n_batches = N_sim // batch_size
+    indices_batched = np.arange(n_batches)
+    train_idx_b, test_idx_b = train_test_split(indices_batched, test_size=0.2, random_state=42)
+    
+    X_train_b = np.concatenate([X_batched[train_idx_b], X_batched[train_idx_b + n_batches]])
+    X_test_b = np.concatenate([X_batched[test_idx_b], X_batched[test_idx_b + n_batches]])
+    y_train_b = np.concatenate([y_batched[train_idx_b], y_batched[train_idx_b + n_batches]])
+    y_test_b = np.concatenate([y_batched[test_idx_b], y_batched[test_idx_b + n_batches]])
+    
+    print("Training XGBoost (Batched)...")
+    xgb_b = xgb.XGBClassifier(
+        n_estimators=1000,
+        learning_rate=0.02,
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        gamma=0.1,
+        min_child_weight=1,
+        n_jobs=-1,
+        random_state=42
+    )
+    xgb_b.fit(X_train_b, y_train_b)
+    y_pred_b = xgb_b.predict(X_test_b)
+    acc_b = accuracy_score(y_test_b, y_pred_b)
+    print(f"XGBoost (Batched Features) Accuracy: {acc_b*100:.2f}%")
+    
+    print("\nConfusion Matrix (Batched):")
+    cm_b = confusion_matrix(y_test_b, y_pred_b)
+    print(cm_b)
 
 if __name__ == "__main__":
     main()
