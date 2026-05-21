@@ -29,6 +29,8 @@ def main():
     
     X_raw, y_raw = load_data(path0, path1)
     X_flux = np.exp(-X_raw)
+    # X_flux_clean = np.exp(-X_raw)
+    # X_flux = X_flux_clean + np.random.normal(0, 1/30, X_flux_clean.shape)
        
     n_samples, n_pixels = X_flux.shape
     dv = calculate_dv(L_cMpc_h=25, z=0.1, n_pixels=n_pixels)
