@@ -74,5 +74,71 @@ def main():
     joblib.dump(model, 'xgb_model_multiclass.joblib')
     print("Model saved to xgb_model_multiclass.joblib")
 
+    print("\n--- Multi-Class XGBoost on Batched Input (Batch Size = 10) ---")
+    batch_size = 10
+    
+    def create_batches(features, labels, batch_size):
+        unique_classes = np.unique(labels)
+        X_batched_list = []
+        y_batched_list = []
+        
+        for c in unique_classes:
+            idx = np.where(labels == c)[0]
+            features_c = features[idx]
+            n_samples_c = len(features_c)
+            n_batches = n_samples_c // batch_size
+            
+            # Truncate to make perfectly divisible
+            features_c = features_c[:n_batches * batch_size]
+            
+            # Reshape to (n_batches, batch_size, n_features)
+            features_c = features_c.reshape((n_batches, batch_size, -1))
+            
+            # Calculate Mean and Std over the batch dimension (axis=1)
+            mean_c = np.mean(features_c, axis=1)
+            std_c = np.std(features_c, axis=1)
+            
+            # Concatenate mean and std to form the batched feature vector
+            X_batch_c = np.concatenate([mean_c, std_c], axis=1)
+            
+            X_batched_list.append(X_batch_c)
+            y_batched_list.append(np.full(n_batches, c))
+            
+        return np.concatenate(X_batched_list, axis=0), np.concatenate(y_batched_list, axis=0)
+        
+    X_batched, y_batched = create_batches(X_features, y_raw, batch_size)
+    print(f"Batched feature shape: {X_batched.shape}")
+    
+    X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(
+        X_batched, y_batched, test_size=0.2, random_state=42, stratify=y_batched
+    )
+    
+    print("Training Multi-Class XGBoost (Batched)...")
+    xgb_b = xgb.XGBClassifier(
+        max_depth=6,
+        learning_rate=0.05,
+        n_estimators=300,
+        objective='multi:softprob',
+        num_class=4,
+        eval_metric='mlogloss',
+        random_state=42,
+        tree_method='hist'
+    )
+    xgb_b.fit(X_train_b, y_train_b)
+    
+    y_pred_b = xgb_b.predict(X_test_b)
+    acc_b = accuracy_score(y_test_b, y_pred_b)
+    print(f"XGBoost Multi-Class (Batched) Accuracy: {acc_b * 100:.2f}%")
+    
+    print("\nConfusion Matrix (Batched):")
+    cm_b = confusion_matrix(y_test_b, y_pred_b)
+    print(cm_b)
+    
+    print("\nClassification Report (Batched):")
+    print(classification_report(y_test_b, y_pred_b, target_names=["EX0", "EX1", "EX2", "EX3"]))
+    
+    joblib.dump(xgb_b, 'xgb_model_multiclass_batched.joblib')
+    print("Model saved to xgb_model_multiclass_batched.joblib")
+
 if __name__ == "__main__":
     main()
