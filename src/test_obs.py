@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import joblib
 import pandas as pd
+from astropy.io import fits
 
 from data_loader import load_data
 from feature_extraction import extract_features, extract_combined_features
@@ -26,6 +27,14 @@ def main():
     print("Loading data (EX1 vs EX3)...")
     path0 = 'data/raw/EX1_spectra.hdf5'
     path1 = 'data/raw/EX3_spectra.hdf5'
+    fits_path = "data/raw/j0453_2p30_done/j0453_sp_norm.fits"
+
+    with fits.open(fits_path) as hdul:
+        hdr  = hdul[0].header
+        flux_obs = hdul[0].data.copy()
+    #reshape into chunks of 2499 pixels   
+    n_chunks = len(flux_obs) // 2499
+    X_flux_obs = flux_obs[:n_chunks * 2499].reshape((n_chunks, 2499))
     
     X_raw, y_raw = load_data(path0, path1)
     X_flux = np.exp(-X_raw)
@@ -59,7 +68,9 @@ def main():
     print("\n--- Experiment 8: XGBoost on Compact Physical Features (<50) ---")
     print("Extracting compact features... (Stats + Binned P(k) + Bi + Wav)")
     features_compact = extract_combined_features(X_flux, dv)
+    features_compact_obs = extract_combined_features(X_flux_obs, 2.5) #### Changed ####
     print(f"Total feature shape: {features_compact.shape}")
+    print(f"Total feature shape for observation: {features_compact_obs.shape}")
     
     X_train_c = np.concatenate([features_compact[train_idx], features_compact[train_idx + N_sim]])
     X_test_c = np.concatenate([features_compact[test_idx], features_compact[test_idx + N_sim]])
@@ -159,7 +170,9 @@ def main():
         return X_batched, y_batched
     
     X_batched, y_batched = create_batches(features_compact, N_sim, batch_size)
+    X_batched_obs, _ = create_batches(features_compact_obs, n_chunks//2, batch_size) #### Changed ####
     print(f"Batched feature shape: {X_batched.shape}")
+    print(f"Batched feature shape for observation: {X_batched_obs.shape}")
     
     # Train test split on batched data
     n_batches = N_sim // batch_size
@@ -185,6 +198,10 @@ def main():
     )
     xgb_b.fit(X_train_b, y_train_b)
     y_pred_b = xgb_b.predict(X_test_b)
+    y_pred_b_obs = xgb_b.predict(X_batched_obs)
+    print("\nPrediction for Observation: ")
+    print(y_pred_b_obs)
+    np.save("y_pred_b_obs.npy", y_pred_b_obs)
     acc_b = accuracy_score(y_test_b, y_pred_b)
     print(f"XGBoost (Batched Features) Accuracy: {acc_b*100:.2f}%")
     
