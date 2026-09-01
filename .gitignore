@@ -11,3 +11,9 @@ __pycache__/
 
 # Documents generated from notebooks
 notebooks/*.pdf
+
+# Local scratch experiments
+scratch/
+
+# Generated run outputs
+outputs/
