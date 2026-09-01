@@ -23,8 +23,8 @@ def calculate_dv(L_cMpc_h=25, z=0.1, n_pixels=None):
     return v_box / n_pixels
 
 def main():
-    print("Loading data (EX1 vs EX3)...")
-    path0 = 'data/raw/EX1_spectra.hdf5'
+    print("Loading data (EX2 vs EX3)...")
+    path0 = 'data/raw/EX2_spectra.hdf5'
     path1 = 'data/raw/EX3_spectra.hdf5'
     
     X_raw, y_raw = load_data(path0, path1)
@@ -191,6 +191,8 @@ def main():
     print("\nConfusion Matrix (Batched):")
     cm_b = confusion_matrix(y_test_b, y_pred_b)
     print(cm_b)
+    joblib.dump(xgb_b, "xgb_model_batched_2_3.joblib")
+    print("Final batched model saved (EX2 vs EX3).")
 
 if __name__ == "__main__":
     main()
