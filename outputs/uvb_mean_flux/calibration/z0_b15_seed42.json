@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "redshift": 0.0,
+  "models": [
+    "EX0",
+    "EX1",
+    "EX2",
+    "EX3"
+  ],
+  "tau_key": "/tau/H/1/1215",
+  "manifest": "outputs/uvb_mean_flux/manifests/z0_b15_seed42.npz",
+  "los_sha256": "ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7",
+  "n_train_los": 7980,
+  "n_test_los": 2010,
+  "fit_tolerance": 0.0001,
+  "target_mean_flux": 0.9733676941738834,
+  "target_tau_eff": 0.026993370777586685,
+  "results": {
+    "EX0": {
+      "raw_train_mean_flux": 0.9728468967756022,
+      "tau_scale": 0.970524389797202,
+      "matched_train_mean_flux": 0.9733963832864949,
+      "train_residual": 2.8689112611557377e-05,
+      "raw_test_mean_flux": 0.9728841265407617,
+      "matched_test_mean_flux": 0.9734333794510467,
+      "test_residual": 6.568527716332984e-05
+    },
+    "EX1": {
+      "raw_train_mean_flux": 0.9745650814185282,
+      "tau_scale": 1.0675314406392244,
+      "matched_train_mean_flux": 0.9733924646628862,
+      "train_residual": 2.4770489002845508e-05,
+      "raw_test_mean_flux": 0.9740939937101323,
+      "matched_test_mean_flux": 0.9729233079901548,
+      "test_residual": -0.0004443861837285512
+    },
+    "EX2": {
+      "raw_train_mean_flux": 0.9708587958778219,
+      "tau_scale": 0.8768067115476661,
+      "matched_train_mean_flux": 0.9733841131284731,
+      "train_residual": 1.6418954589703105e-05,
+      "raw_test_mean_flux": 0.9713051729091515,
+      "matched_test_mean_flux": 0.9737973917607369,
+      "test_residual": 0.0004296975868535169
+    },
+    "EX3": {
+      "raw_train_mean_flux": 0.9752000026235815,
+      "tau_scale": 1.1073057870014982,
+      "matched_train_mean_flux": 0.9734064021741746,
+      "train_residual": 3.870800029126542e-05,
+      "raw_test_mean_flux": 0.9751944550115671,
+      "matched_test_mean_flux": 0.9734105881532167,
+      "test_residual": 4.289397933332495e-05
+    }
+  }
+}

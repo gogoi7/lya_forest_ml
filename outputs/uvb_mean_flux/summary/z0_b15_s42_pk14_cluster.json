@@ -1,0 +1,42 @@
+{
+  "seed": 20260911,
+  "bootstrap_samples": 50000,
+  "permutation_samples": 100000,
+  "cluster": "paired LOS bundle ID",
+  "records": [
+    {
+      "comparison": "EX2-EX3",
+      "models": [
+        "EX2",
+        "EX3"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.75,
+      "matched_accuracy": 0.8880597014925373,
+      "accuracy_change": 0.13805970149253732,
+      "ci_low": 0.08955223880597014,
+      "ci_high": 0.1865671641791045,
+      "permutation_p": 9.99990000099999e-06,
+      "holm_p": 1.999980000199998e-05
+    },
+    {
+      "comparison": "Four-class",
+      "models": [
+        "EX0",
+        "EX1",
+        "EX2",
+        "EX3"
+      ],
+      "n_bundles": 134,
+      "n_examples": 536,
+      "raw_accuracy": 0.4925373134328358,
+      "matched_accuracy": 0.5746268656716418,
+      "accuracy_change": 0.08208955223880597,
+      "ci_low": 0.03917910447761194,
+      "ci_high": 0.125,
+      "permutation_p": 0.0003699963000369996,
+      "holm_p": 0.0003699963000369996
+    }
+  ]
+}

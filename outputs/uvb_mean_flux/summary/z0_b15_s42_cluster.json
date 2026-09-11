@@ -1,0 +1,122 @@
+{
+  "seed": 20260911,
+  "bootstrap_samples": 50000,
+  "permutation_samples": 100000,
+  "cluster": "paired LOS bundle ID",
+  "records": [
+    {
+      "comparison": "EX0-EX1",
+      "models": [
+        "EX0",
+        "EX1"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.7947761194029851,
+      "matched_accuracy": 0.8880597014925373,
+      "accuracy_change": 0.09328358208955224,
+      "ci_low": 0.048507462686567165,
+      "ci_high": 0.13805970149253732,
+      "permutation_p": 0.0001999980000199998,
+      "holm_p": 0.000999990000099999
+    },
+    {
+      "comparison": "EX0-EX2",
+      "models": [
+        "EX0",
+        "EX2"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.8619402985074627,
+      "matched_accuracy": 0.9328358208955224,
+      "accuracy_change": 0.0708955223880597,
+      "ci_low": 0.03731343283582089,
+      "ci_high": 0.10820895522388059,
+      "permutation_p": 0.00021999780002199978,
+      "holm_p": 0.000999990000099999
+    },
+    {
+      "comparison": "EX0-EX3",
+      "models": [
+        "EX0",
+        "EX3"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.832089552238806,
+      "matched_accuracy": 0.8843283582089553,
+      "accuracy_change": 0.05223880597014925,
+      "ci_low": 0.011194029850746268,
+      "ci_high": 0.09328358208955224,
+      "permutation_p": 0.023979760202397976,
+      "holm_p": 0.07193928060719393
+    },
+    {
+      "comparison": "EX1-EX2",
+      "models": [
+        "EX1",
+        "EX2"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.9328358208955224,
+      "matched_accuracy": 0.9552238805970149,
+      "accuracy_change": 0.022388059701492536,
+      "ci_low": -0.0037313432835820895,
+      "ci_high": 0.048507462686567165,
+      "permutation_p": 0.17861821381786183,
+      "holm_p": 0.28913710862891373
+    },
+    {
+      "comparison": "EX1-EX3",
+      "models": [
+        "EX1",
+        "EX3"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.9514925373134329,
+      "matched_accuracy": 0.9291044776119403,
+      "accuracy_change": -0.022388059701492536,
+      "ci_low": -0.048507462686567165,
+      "ci_high": 0.0,
+      "permutation_p": 0.14456855431445687,
+      "holm_p": 0.28913710862891373
+    },
+    {
+      "comparison": "EX2-EX3",
+      "models": [
+        "EX2",
+        "EX3"
+      ],
+      "n_bundles": 134,
+      "n_examples": 268,
+      "raw_accuracy": 0.7425373134328358,
+      "matched_accuracy": 0.9514925373134329,
+      "accuracy_change": 0.208955223880597,
+      "ci_low": 0.16044776119402984,
+      "ci_high": 0.2537313432835821,
+      "permutation_p": 9.99990000099999e-06,
+      "holm_p": 6.999930000699993e-05
+    },
+    {
+      "comparison": "EX0-EX1-EX2-EX3",
+      "models": [
+        "EX0",
+        "EX1",
+        "EX2",
+        "EX3"
+      ],
+      "n_bundles": 134,
+      "n_examples": 536,
+      "raw_accuracy": 0.6585820895522388,
+      "matched_accuracy": 0.8488805970149254,
+      "accuracy_change": 0.19029850746268656,
+      "ci_low": 0.14925373134328357,
+      "ci_high": 0.23134328358208955,
+      "permutation_p": 9.99990000099999e-06,
+      "holm_p": 6.999930000699993e-05
+    }
+  ]
+}
