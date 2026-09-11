@@ -1,198 +1,257 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import xgboost as xgb
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+"""Configurable XGBoost training script for bundled Ly-alpha forest features."""
+
+import argparse
+import json
+from pathlib import Path
+
 import joblib
-import pandas as pd
+import numpy as np
+import xgboost as xgb
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+)
 
-from data_loader import load_data
-from feature_extraction import extract_features, extract_combined_features
+from .experiment import load_split
+from .manifests import load_manifest
 
-def calculate_dv(L_cMpc_h=25, z=0.1, n_pixels=None):
-    """
-    Calculate velocity width per pixel.
-    """
-    H0 = 100 
-    Omega_m = 0.3
-    Omega_L = 0.7
-    E_z = np.sqrt(Omega_m * (1 + z)**3 + Omega_L)
-    H_z = H0 * E_z
-    v_box = (1 / (1 + z)) * H_z * (L_cMpc_h)
-    return v_box / n_pixels
+MODELS = {"EX0", "EX1", "EX2", "EX3"}
 
-def main():
-    print("Loading data (EX2 vs EX3)...")
-    path0 = 'data/raw/EX2_spectra.hdf5'
-    path1 = 'data/raw/EX3_spectra.hdf5'
-    
-    X_raw, y_raw = load_data(path0, path1)
-    X_flux = np.exp(-X_raw)
-    # X_flux_clean = np.exp(-X_raw)
-    # X_flux = X_flux_clean + np.random.normal(0, 1/30, X_flux_clean.shape)
-       
-    n_samples, n_pixels = X_flux.shape
-    dv = calculate_dv(L_cMpc_h=25, z=0, n_pixels=n_pixels)
-    print(f"Calculated dv: {dv:.4f} km/s per pixel.")
-    
-    # 1. Experiment 5: XGBoost on Stat Features Only (Baseline for XGB)
-    print("\n--- Experiment 5: XGBoost on Statistical Features ---")
-    features_stats = extract_features(X_flux, dv)
-    
-    N_sim = len(X_flux) // 2
-    indices = np.arange(N_sim)
-    train_idx, test_idx = train_test_split(indices, test_size=0.2, random_state=42)
-    
-    X_train_stats = np.concatenate([features_stats[train_idx], features_stats[train_idx + N_sim]])
-    y_train = np.concatenate([y_raw[train_idx], y_raw[train_idx + N_sim]])
-    X_test_stats = np.concatenate([features_stats[test_idx], features_stats[test_idx + N_sim]])
-    y_test = np.concatenate([y_raw[test_idx], y_raw[test_idx + N_sim]])
-    
-    xgb_stats = xgb.XGBClassifier(n_estimators=200, learning_rate=0.1, max_depth=5, n_jobs=-1, random_state=42)
-    xgb_stats.fit(X_train_stats, y_train)
-    y_pred_stats = xgb_stats.predict(X_test_stats)
-    acc_stats = accuracy_score(y_test, y_pred_stats)
-    print(f"XGBoost (Stats) Accuracy: {acc_stats*100:.2f}%")
-    
-    # 2. Experiment 8: XGBoost on Compact Physical Features (<50)
-    print("\n--- Experiment 8: XGBoost on Compact Physical Features (<50) ---")
-    print("Extracting compact features... (Stats + Binned P(k) + Bi + Wav)")
-    features_compact = extract_combined_features(X_flux, dv)
-    print(f"Total feature shape: {features_compact.shape}")
-    
-    X_train_c = np.concatenate([features_compact[train_idx], features_compact[train_idx + N_sim]])
-    X_test_c = np.concatenate([features_compact[test_idx], features_compact[test_idx + N_sim]])
-    
-    # Tuning for compact feature set
-    print("Training XGBoost (Compact)...")
-    xgb_c = xgb.XGBClassifier(
-        n_estimators=1000,
-        learning_rate=0.02,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        gamma=0.1,
-        min_child_weight=1,
-        n_jobs=-1,
-        random_state=42
+XGB_DEFAULT_PARAMS = {
+    "n_estimators": 1000,
+    "learning_rate": 0.02,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "gamma": 0.1,
+    "min_child_weight": 1,
+    "n_jobs": -1,
+}
+# Changes added for excluding small scale Pk features
+N_LOS_FEATURES = 46
+N_BUNDLE_FEATURES = N_LOS_FEATURES * 2
+PK_START = 17
+PK_STOP = 37
+MAX_PK_BIN = 19
+
+def feature_columns(max_pk_bin=MAX_PK_BIN):
+    """Return bundled feature column names through a specificed P(k) bin index."""
+    if (
+        not isinstance(max_pk_bin, (int, np.integer))
+        or isinstance(max_pk_bin, bool)
+        or not 0 <= max_pk_bin <= MAX_PK_BIN
+    ):
+        raise ValueError(f"max_pk_bin must be an integer between 0 and {MAX_PK_BIN}")
+
+    first_drop = PK_START + max_pk_bin + 1
+    drop_mean = np.arange(first_drop, PK_STOP)
+    drop_std = drop_mean + N_LOS_FEATURES
+
+    keep = np.ones(N_BUNDLE_FEATURES, dtype=bool)
+    keep[drop_mean] = False
+    keep[drop_std] = False
+
+    return np.flatnonzero(keep)
+
+def make_model(seed=42):
+    """Create an XGBoost classifier with the specified random seed."""
+    return xgb.XGBClassifier(**XGB_DEFAULT_PARAMS, random_state=seed)
+
+def score_pred(y_true, y_pred, models):
+    """Compute accuracy and classification report for predictions."""
+    labels = np.arange(len(models))
+
+    return {
+        "accuracy": float(accuracy_score(y_true, y_pred)),
+        "confusion_matrix": confusion_matrix(y_true, y_pred, labels=labels).tolist(),
+        "classification_report": classification_report(
+            y_true, y_pred, labels=labels, target_names=models, output_dict=True, zero_division=0,
+        ),
+    }
+
+def run_training(
+    models,
+    condition,
+    manifest_path,
+    feature_dir,
+    output_dir,
+    tag="z0_b15",
+    seed=42,
+    max_pk_bin=MAX_PK_BIN, # Maximum P(k) bin to include
+):
+    """Train an XGBoost model on bundled features and save the model, metrics, and predictions."""
+    models = list(models)
+    manifest_path = Path(manifest_path)
+    feature_dir = Path(feature_dir)
+    output_dir = Path(output_dir)
+
+    columns = feature_columns(max_pk_bin=max_pk_bin)
+
+    run_tag = f"{tag}_s{seed}"
+    if max_pk_bin < MAX_PK_BIN:
+        run_tag += f"_pk{max_pk_bin}"
+    run_dir = output_dir / run_tag / condition / "_".join(models)
+    model_path = run_dir / "model.joblib"
+    metrics_path = run_dir / "metrics.json"
+    predict_path = run_dir / "predictions.npz"
+
+    existing = [path for path in [model_path, metrics_path, predict_path] if path.exists()]
+    if existing:
+        raise FileExistsError(f"Output files already exist: {existing}")
+
+    manifest = load_manifest(manifest_path)
+    X_train, y_train, X_test, y_test = load_split(
+        models=models,
+        condition=condition,
+        features_dir=feature_dir,
+        manifest=manifest,
+        tag=tag,
     )
-    
-    xgb_c.fit(X_train_c, y_train, verbose=True)
-    y_pred_c = xgb_c.predict(X_test_c)
-    acc_c = accuracy_score(y_test, y_pred_c)
-    print(f"XGBoost (Compact Features) Accuracy: {acc_c*100:.2f}%")
-    
-    print("\nConfusion Matrix (Compact):")
-    cm = confusion_matrix(y_test, y_pred_c)
-    print(cm)
-    
-    # Feature Importance with Proper Labels
-    stat_names = [
-        "Mean Flux", "Flux Std", "Min Flux", 
-        "Skewness", "Kurtosis",
-        "P5", "P25", "P50", "P75", "P95",
-        "Num Lines",
-        "Mean Line Depth", "Max Line Depth",
-        "Mean Line Width", "Max Line Width",
-        "Total EW",
-        "Col Density Proxy"
-    ]
-    pk_names = [f"Pk_bin_{i}" for i in range(20)]
-    bi_names = ["dF_std", "dF_skew", "dF_kurt"]
-    wav_names = [f"Wav_E_{i}" for i in range(6)]
-    
-    all_names = stat_names + pk_names + bi_names + wav_names
-    # Adjust for actual length
-    if len(all_names) != features_compact.shape[1]:
-        print(f"Warning: Name list length {len(all_names)} != feature count {features_compact.shape[1]}")
-        all_names = [f"Feat_{i}" for i in range(features_compact.shape[1])]
-        
-    importances = xgb_c.feature_importances_
-    sorted_idx = np.argsort(importances)[::-1]
-    
-    print("\nTop 15 Feature Importances:")
-    for i in range(min(15, len(all_names))):
-        idx = sorted_idx[i]
-        name = all_names[idx] if idx < len(all_names) else f"Feat_{idx}"
-        print(f"{i+1}. {name}: {importances[idx]:.4f}")
-    
-    joblib.dump(xgb_c, "xgb_model_compact.joblib")
-    print("Final compact model saved.")
+    X_train = X_train[:, columns]
+    X_test = X_test[:, columns]
 
-    # 3. Experiment 9: XGBoost on Batched Input (Batch Size = 15)
-    print("\n--- Experiment 9: XGBoost on Batched Input (Batch Size = 15) ---")
-    batch_size = 15
-    
-    def create_batches(features, N_sim, batch_size):
-        # features is shape (2*N_sim, n_features)
-        # First N_sim is class 0, next N_sim is class 1
-        
-        features_class0 = features[:N_sim]
-        features_class1 = features[N_sim:]
-        
-        # Ensure divisible by batch_size
-        n_batches = N_sim // batch_size
-        
-        # Truncate to make perfectly divisible
-        features_class0 = features_class0[:n_batches * batch_size]
-        features_class1 = features_class1[:n_batches * batch_size]
-        
-        # Reshape to (n_batches, batch_size, n_features)
-        features_class0 = features_class0.reshape((n_batches, batch_size, -1))
-        features_class1 = features_class1.reshape((n_batches, batch_size, -1))
-        
-        # Calculate Mean and Std over the batch dimension (axis=1)
-        mean_0 = np.mean(features_class0, axis=1)
-        std_0 = np.std(features_class0, axis=1)
-        mean_1 = np.mean(features_class1, axis=1)
-        std_1 = np.std(features_class1, axis=1)
-        
-        # Concatenate mean and std to form the batched feature vector
-        X_batch_0 = np.concatenate([mean_0, std_0], axis=1)
-        X_batch_1 = np.concatenate([mean_1, std_1], axis=1)
-        
-        # Combine classes
-        X_batched = np.concatenate([X_batch_0, X_batch_1], axis=0)
-        y_batched = np.concatenate([np.zeros(n_batches), np.ones(n_batches)])
-        
-        return X_batched, y_batched
-    
-    X_batched, y_batched = create_batches(features_compact, N_sim, batch_size)
-    print(f"Batched feature shape: {X_batched.shape}")
-    
-    # Train test split on batched data
-    n_batches = N_sim // batch_size
-    indices_batched = np.arange(n_batches)
-    train_idx_b, test_idx_b = train_test_split(indices_batched, test_size=0.2, random_state=42)
-    
-    X_train_b = np.concatenate([X_batched[train_idx_b], X_batched[train_idx_b + n_batches]])
-    X_test_b = np.concatenate([X_batched[test_idx_b], X_batched[test_idx_b + n_batches]])
-    y_train_b = np.concatenate([y_batched[train_idx_b], y_batched[train_idx_b + n_batches]])
-    y_test_b = np.concatenate([y_batched[test_idx_b], y_batched[test_idx_b + n_batches]])
-    
-    print("Training XGBoost (Batched)...")
-    xgb_b = xgb.XGBClassifier(
-        n_estimators=1000,
-        learning_rate=0.02,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        gamma=0.1,
-        min_child_weight=1,
-        n_jobs=-1,
-        random_state=42
+    print(f"Training {condition} comparison: {' vs '.join(models)}")
+    print(f"Training data shape: {X_train.shape}, Testing data shape: {X_test.shape}")
+    print(
+        f"Using {len(columns)} features (P(k) bins 0-{max_pk_bin}) out of {N_BUNDLE_FEATURES} total features"
     )
-    xgb_b.fit(X_train_b, y_train_b)
-    y_pred_b = xgb_b.predict(X_test_b)
-    acc_b = accuracy_score(y_test_b, y_pred_b)
-    print(f"XGBoost (Batched Features) Accuracy: {acc_b*100:.2f}%")
-    
-    print("\nConfusion Matrix (Batched):")
-    cm_b = confusion_matrix(y_test_b, y_pred_b)
-    print(cm_b)
-    joblib.dump(xgb_b, "xgb_model_batched_2_3.joblib")
-    print("Final batched model saved (EX2 vs EX3).")
+
+    model = make_model(seed=seed)
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    probabilities = model.predict_proba(X_test)
+    scores = score_pred(y_test, y_pred, models)
+
+    params = {**XGB_DEFAULT_PARAMS, "random_state": seed}
+
+    metrics = {
+        "models": models,
+        "label_map": {
+            str(label): model for label, model in enumerate(models)
+        },
+        "condition": condition,
+        "feature_tag": tag,
+        "manifest": str(manifest_path),
+        "los_sha256": str(manifest["los_sha256"].item()),
+        "split_seed": int(manifest["seed"].item()),
+        "model_seed": seed,
+        "n_train": int(X_train.shape[0]),
+        "n_test": int(X_test.shape[0]),
+        "n_features": int(X_train.shape[1]),
+        "xgboost_version": xgb.__version__,
+        "xgboost_params": params,
+        "feature_importances": model.feature_importances_.astype(float).tolist(),
+        **scores,
+        "max_pk_bin": max_pk_bin,
+        "feature_columns": columns.tolist(),
+    }
+
+    metrics_text = json.dumps(metrics, indent=2)
+
+    n_test_bundle = manifest["test_bundle_ids"].size
+    test_bundle_ids = np.tile(manifest["test_bundle_ids"], len(models))
+    source_models = np.repeat(np.asarray(models), n_test_bundle)
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    joblib.dump(model, model_path)
+
+    np.savez_compressed(
+        predict_path,
+        y_true=y_test,
+        y_pred=y_pred,
+        probabilities=probabilities,
+        bundle_ids=test_bundle_ids,
+        source_models=source_models,
+    )
+
+    with metrics_path.open("x") as f:
+        f.write(metrics_text)
+        f.write("\n")
+
+    print(f"Accuracy: {scores['accuracy']:.4f}")
+    print("Confusion Matrix:")
+    print(np.array(scores["confusion_matrix"]))
+    print()
+    print(
+        classification_report(
+            y_test, y_pred, labels=np.arange(len(models)), target_names=models, digits=4, zero_division=0,
+        )
+    )
+    print(f"Saved run directory: {run_dir}")
+
+    return metrics
+
+def build_parser():
+    """Build the command-line argument parser."""
+    parser = argparse.ArgumentParser(
+        description="Train an XGBoost model on raw of mean-flux-matched bundled Ly-alpha forest features.",
+    )
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        required=True,
+        choices=sorted(MODELS),
+        help="Models to classify, in label order (e.g., EX0 EX1 EX2). At least two models must be specified.",
+    )
+    parser.add_argument(
+        "--condition",
+        required=True,
+        choices=("raw", "matched"),
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("outputs/uvb_mean_flux/manifests/z0_b15_seed42.npz"),
+        help="Path to the manifest file describing the bundle scheme and train/test split.",
+    )
+    parser.add_argument(
+        "--features",
+        type=Path,
+        default=Path("outputs/uvb_mean_flux/features"),
+        help="Directory containing the feature bundles saved as .npz files.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("outputs/uvb_mean_flux/runs"),
+        help="Directory to save the trained model, metrics, and predictions.",
+    )
+    parser.add_argument(
+        "--tag",
+        default="z0_b15",
+        help="Tag/prefix to identify feature files (default: z0_b15).",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for model training (default: 42).",
+    )
+    parser.add_argument(
+        "--max-pk-bin",
+        type=int,
+        default=MAX_PK_BIN,
+        help=f"Maximum P(k) bin index to include in features (default: {MAX_PK_BIN}). Must be between 0 and {MAX_PK_BIN}.",
+    )
+    return parser
+
+def main(argv=None):
+    """Main function to parse arguments and run training."""
+    args = build_parser().parse_args(argv)
+
+    run_training(
+        models=args.models,
+        condition=args.condition,
+        manifest_path=args.manifest,
+        feature_dir=args.features,
+        output_dir=args.output,
+        tag=args.tag,
+        seed=args.seed,
+        max_pk_bin=args.max_pk_bin,
+    )
 
 if __name__ == "__main__":
     main()
