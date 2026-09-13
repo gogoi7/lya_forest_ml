@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from src.instrument import apply_cos_gaussian
+from src.instrument import apply_cos_gaussian, resample_flux
 
 TARGET_K_VALUES = [0.02, 0.05, 0.10, 0.20, 0.30]
 
@@ -58,3 +58,43 @@ def test_gaussian_lsf_power_transfer(target_k):
     )
 
     assert measured_ratio == pytest.approx(expected_ratio, rel=5e-3)
+
+def test_resampling_matches_expected():
+    flux  = np.array([0.2, 0.4, 1.0, 0.6, 0.8])
+
+    flux_out, dv_out = resample_flux(flux, dv_in=1.0, n_pixels_out=3)
+
+    #Output bins cover [0, 5/3), [5/3, 10/3), [10/3, 5]
+    expected = np.array([0.28, 0.8, 0.72])
+
+    assert flux_out.shape == (3,)
+    assert dv_out == pytest.approx(5.0 / 3.0)
+
+    np.testing.assert_allclose(flux_out, expected, rtol=0.0, atol=1e-12)
+
+def test_resampling_preserves_flat_continuum():
+    flux = np.full(2499, 0.73, dtype=np.float64)
+
+    flux_out, _ = resample_flux(flux, dv_in=1.0004, n_pixels_out=1249)
+
+    assert flux_out.shape == (1249,)
+    np.testing.assert_allclose(flux_out, 0.73, rtol=0.0, atol=1e-12)
+
+def test_resampling_preserves_batch_means_length_and_input():
+    rng = np.random.default_rng(seed=42)
+    flux = rng.uniform(0.0, 1.0, size=(3, 2499))
+    original = flux.copy()
+    dv_in = 1.0004
+
+    flux_out, dv_out = resample_flux(flux, dv_in=dv_in, n_pixels_out=1249)
+
+    assert flux_out.shape == (3, 1249)
+
+    length_in = flux.shape[-1] * dv_in
+    length_out = flux_out.shape[-1] * dv_out
+
+    assert length_out == pytest.approx(length_in, rel=0.0, abs=1e-10)
+
+    np.testing.assert_allclose(flux_out.mean(axis=1), original.mean(axis=1), rtol=0.0, atol=1e-12)
+
+    np.testing.assert_array_equal(flux, original)  # Ensure input flux is not modified
