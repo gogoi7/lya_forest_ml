@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "models": [
+    "EX0",
+    "EX1",
+    "EX2",
+    "EX3"
+  ],
+  "n_test_examples": 536,
+  "n_paired_bundles": 134,
+  "n_bootstrap": 50000,
+  "seed": 20260913,
+  "confidence": 0.95,
+  "method": "paired bootstrap by test-bundle ID",
+  "accuracy": {
+    "native": {
+      "accuracy": 0.8488805970149254,
+      "ci_low": 0.8097014925373134,
+      "ci_high": 0.8861940298507462
+    },
+    "gaussian": {
+      "accuracy": 0.8507462686567164,
+      "ci_low": 0.8134328358208955,
+      "ci_high": 0.8861940298507462
+    },
+    "gaussian_rebinned": {
+      "accuracy": 0.5615671641791045,
+      "ci_low": 0.5223880597014925,
+      "ci_high": 0.6007462686567164
+    }
+  },
+  "changes": {
+    "gaussian - native": {
+      "difference_pp": 0.1865671641791078,
+      "ci_low_pp": -1.6791044776119368,
+      "ci_high_pp": 2.0522388059701524
+    },
+    "gaussian_rebinned - native": {
+      "difference_pp": -28.73134328358209,
+      "ci_low_pp": -33.02238805970149,
+      "ci_high_pp": -24.44029850746269
+    },
+    "gaussian_rebinned - gaussian": {
+      "difference_pp": -28.917910447761198,
+      "ci_low_pp": -33.582089552238806,
+      "ci_high_pp": -24.25373134328358
+    }
+  }
+}

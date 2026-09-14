@@ -2,33 +2,43 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
-def apply_cos_gaussian(flux, dv_sim, sigma_kms=7.96):
+def apply_cos_gaussian(
+    flux,
+    dv_sim,
+    sigma_kms=7.96,
+    truncate=4.0,
+):
     """
-    Apply a periodic Gaussian approximation of the COS LSF to the input flux array.
+    Apply a periodic Gaussian LSF without changing the pixel grid.
 
-    Parameters:
-    flux :array-like
-        Input flux array (1D or 2D) to which the COS LSF will be applied.
-    dv_sim :float
-        Pixel width of the simulation pixel in km/s. This is used to convert the Gaussian LSF width from km/s to pixels.
-    sigma_kms :float, optional
-        Standard deviation of the Gaussian LSF in km/s. Default is 7.96 km/s, which corresponds to the COS LSF resolving power of R ~ 18,000 at 1216 Å.
+    Parameters
+    ----------
+    flux : array_like
+        One spectrum or an array shaped (n_spectra, n_pixels).
+    dv_sim : float
+        Input pixel width in km/s.
+    sigma_kms : float
+        Standard deviation of the Gaussian in km/s.
+    truncate : float
+        Kernel extent on each side, in Gaussian standard deviations.
 
-    Returns:
-    flux_smoothed :np.ndarray
-        Flux array after applying the COS LSF. The shape is the same as the input flux array.
-    dv_out :float
-        output pixel width in km/s, which is the same as dv_sim because the function does not perform any resampling or rebinning of the flux array.
+    Returns
+    -------
+    flux_smoothed : np.ndarray
+        Smoothed flux with the same shape as the input.
+    dv_out : float
+        Unchanged pixel width in km/s.
     """
     flux = np.asarray(flux, dtype=np.float64)
     dv_sim = float(dv_sim)
     sigma_kms = float(sigma_kms)
+    truncate = float(truncate)
 
-    if not flux.ndim in (1, 2):
+    if flux.ndim not in (1, 2):
         raise ValueError("flux must be a 1D or 2D array")
 
     if flux.shape[-1] < 2:
-        raise ValueError("flux must have at least two pixels")
+        raise ValueError("flux must contain at least two pixels")
 
     if not np.all(np.isfinite(flux)):
         raise ValueError("flux must contain only finite values")
@@ -39,13 +49,20 @@ def apply_cos_gaussian(flux, dv_sim, sigma_kms=7.96):
     if not np.isfinite(sigma_kms) or sigma_kms <= 0.0:
         raise ValueError("sigma_kms must be a positive finite value")
 
-    # Convert sigma from km/s to pixels
+    if not np.isfinite(truncate) or truncate <= 0.0:
+        raise ValueError("truncate must be a positive finite value")
+
     sigma_pix = sigma_kms / dv_sim
 
-    # Apply the Gaussian filter
-    flux_smoothed = gaussian_filter1d(flux, sigma=sigma_pix, axis=-1, mode='wrap', truncate=4.0)
+    flux_smoothed = gaussian_filter1d(
+        flux,
+        sigma=sigma_pix,
+        axis=-1,
+        mode="wrap",
+        truncate=truncate,
+    )
 
-    return flux_smoothed, dv_sim  # output pixel width is the same as input since we are not resampling
+    return flux_smoothed, dv_sim
 
 def resample_flux(flux, dv_in, n_pixels_out):
     """

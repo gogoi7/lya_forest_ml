@@ -1,0 +1,15 @@
+{
+  "reference_stage": "gaussian",
+  "updated_stage": "gaussian_truncate8",
+  "reference_accuracy": 0.8507462686567164,
+  "updated_accuracy": 0.6063432835820896,
+  "difference_pp": -24.44029850746269,
+  "ci_low_pp": -28.35820895522388,
+  "ci_high_pp": -20.522388059701495,
+  "confidence_level": 0.95,
+  "n_test_examples": 536,
+  "n_paired_bundles": 134,
+  "n_bootstrap": 50000,
+  "seed": 20260913,
+  "method": "paired percentile bootstrap over bundle IDs"
+}

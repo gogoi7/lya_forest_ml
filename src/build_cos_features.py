@@ -13,7 +13,14 @@ from .manifests import load_manifest
 
 
 MODELS = ("EX0", "EX1", "EX2", "EX3")
-STAGES = ("gaussian", "gaussian_rebinned")
+TRUNCATE_BY_STAGE = {
+    "gaussian": 4.0,
+    "gaussian_rebinned": 4.0,
+    "gaussian_truncate8": 8.0,
+    "gaussian_rebinned_truncate8": 8.0,
+}
+
+STAGES = tuple(TRUNCATE_BY_STAGE)
 
 SIGMA_KMS = 7.96
 N_PIXELS_OUT = 1249
@@ -86,13 +93,19 @@ def build_cos_features(model, stage):
 
     mean_flux_before = flux.mean(axis=-1)
 
+    truncate = TRUNCATE_BY_STAGE[stage]
+
     flux, dv_out = apply_cos_gaussian(
         flux,
         dv_sim=dv_sim,
         sigma_kms=SIGMA_KMS,
+        truncate=truncate,
     )
 
-    if stage == "gaussian_rebinned":
+    if stage in (
+        "gaussian_rebinned",
+        "gaussian_rebinned_truncate8",
+    ):
         flux, dv_out = resample_flux(
             flux,
             dv_in=dv_out,
@@ -125,6 +138,7 @@ def build_cos_features(model, stage):
         "stage": stage,
         "redshift": 0.0,
         "sigma_kms": SIGMA_KMS,
+        "truncate": truncate,
         "noise_added": False,
         "tau_scale": tau_scale,
         "dv_sim": dv_sim,

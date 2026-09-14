@@ -98,3 +98,33 @@ def test_resampling_preserves_batch_means_length_and_input():
     np.testing.assert_allclose(flux_out.mean(axis=1), original.mean(axis=1), rtol=0.0, atol=1e-12)
 
     np.testing.assert_array_equal(flux, original)  # Ensure input flux is not modified
+
+def test_eight_sigma_kernel_power_transfer_across_full_grid():
+    n_pixels = 2499
+    dv_sim = 2500.0 / n_pixels
+    sigma_kms = 7.96
+
+    impulse = np.zeros(n_pixels, dtype=np.float64)
+    impulse[0] = 1.0
+
+    response, dv_out = apply_cos_gaussian(
+        impulse,
+        dv_sim=dv_sim,
+        sigma_kms=sigma_kms,
+        truncate=8.0,
+    )
+
+    k = 2.0 * np.pi * np.fft.rfftfreq(
+        n_pixels,
+        d=dv_out,
+    )
+
+    measured_transfer = np.abs(np.fft.rfft(response)) ** 2
+    expected_transfer = np.exp(-(k * sigma_kms) ** 2)
+
+    np.testing.assert_allclose(
+        measured_transfer,
+        expected_transfer,
+        rtol=1e-6,
+        atol=1e-24,
+    )
