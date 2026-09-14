@@ -59,7 +59,7 @@ def extract_features(X, dv):
 
         # 13. Column Density Proxy (Sum of optical depth)
         # tau = -ln(F). small offset to avoid log(0)
-        tau = -np.log(flux + 1e-10)
+        tau = -np.log(np.maximum(flux, 0.0) + 1e-10)
         total_col_density_proxy = np.sum(tau)
 
         # Combine all features

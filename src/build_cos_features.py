@@ -18,6 +18,7 @@ TRUNCATE_BY_STAGE = {
     "gaussian_rebinned": 4.0,
     "gaussian_truncate8": 8.0,
     "gaussian_rebinned_truncate8": 8.0,
+    "gaussian_rebinned_truncate8_snr10000": 8.0,
 }
 
 STAGES = tuple(TRUNCATE_BY_STAGE)
@@ -105,6 +106,7 @@ def build_cos_features(model, stage):
     if stage in (
         "gaussian_rebinned",
         "gaussian_rebinned_truncate8",
+        "gaussian_rebinned_truncate8_snr10000",
     ):
         flux, dv_out = resample_flux(
             flux,
@@ -119,6 +121,30 @@ def build_cos_features(model, stage):
         atol=1e-12,
     ):
         raise RuntimeError("Instrument processing changed the mean flux")
+    
+    snr_per_pixel = None
+    noise_seed = None
+
+    if stage == "gaussian_rebinned_truncate8_snr10000":
+        if np.any(flux < 0.0):
+            raise RuntimeError("Expected nonnegative clean flux")
+
+        snr_per_pixel = 10000.0
+        noise_seed = 20260914 + MODELS.index(model)
+        rng = np.random.default_rng(noise_seed)
+
+        flux = flux + rng.normal(
+            loc=0.0,
+            scale=1.0 / snr_per_pixel,
+            size=flux.shape,
+        )
+
+    negative_flux_fraction = float(np.mean(flux < 0.0))
+
+    print(
+        f"{model}: negative-flux fraction = "
+        f"{negative_flux_fraction:.6e}"
+    )
 
     # Features must use the actual output pixel width.
     los_features = extract_combined_features(flux, dv_out)
@@ -139,7 +165,16 @@ def build_cos_features(model, stage):
         "redshift": 0.0,
         "sigma_kms": SIGMA_KMS,
         "truncate": truncate,
-        "noise_added": False,
+        "noise_added": snr_per_pixel is not None,
+        "snr_per_pixel": snr_per_pixel,
+        "noise_seed": noise_seed,
+        "noise_model": (
+            "iid_gaussian_continuum"
+            if snr_per_pixel is not None
+            else None
+        ),
+        "negative_flux_fraction": negative_flux_fraction,
+        "tau_proxy_log_policy": "log input = max(flux, 0) + 1e-10",
         "tau_scale": tau_scale,
         "dv_sim": dv_sim,
         "dv_out": dv_out,
