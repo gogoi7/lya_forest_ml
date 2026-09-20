@@ -1,6 +1,7 @@
 """Instrument-response functions for simulated Ly-alpha forest spectra."""
 import numpy as np
-from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import convolve1d, gaussian_filter1d
+from scipy.interpolate import PchipInterpolator
 
 def apply_cos_gaussian(
     flux,
@@ -138,3 +139,142 @@ def resample_flux(flux, dv_in, n_pixels_out):
         return flux_out[0], dv_out
 
     return flux_out, dv_out
+
+def load_cos_lsf(path):
+    """Load an STScI FUV LSF table and normalize each profile.
+
+    Returns
+    -------
+    wavelengths : np.ndarray, shape (n_wavelengths,)
+        Wavelength of each tabulated profile, in Angstrom.
+    kernels : np.ndarray, shape (321, n_wavelengths)
+        Nonnegative LSF weights, with each column summing to one.
+    """
+    table = np.loadtxt(path, dtype=np.float64, ndmin=2)
+
+    if table.shape[0] != 322 or table.shape[1] < 2:
+        raise ValueError(
+            "Expected a wavelength header followed by 321 LSF rows"
+        )
+
+    if not np.all(np.isfinite(table)):
+        raise ValueError("LSF table must contain only finite values")
+
+    wavelengths = table[0]
+    kernels = table[1:]
+
+    if np.any(wavelengths <= 0.0) or np.any(np.diff(wavelengths) <= 0.0):
+        raise ValueError("LSF wavelengths must be positive and increasing")
+
+    if np.any(kernels < 0.0):
+        raise ValueError("LSF weights must be nonnegative")
+
+    column_sums = kernels.sum(axis=0)
+
+    # Reject incorrectly scaled tables; allow small tabulation errors.
+    if not np.allclose(column_sums, 1.0, rtol=0.0, atol=1e-4):
+        raise ValueError("Each LSF profile must already sum approximately to one")
+
+    return wavelengths, kernels / column_sums[None, :]
+
+def resample_lsf(kernel, dv_in, dv_out):
+    """Resample centered LSF weights onto a new velocity grid.
+
+    Pixel spacings are in km/s. The middle sample represents zero
+    velocity. Treats input values as weights in native pixel bins.
+    Returns normalized, odd-length weights covering the full input.
+    """
+    kernel = np.asarray(kernel, dtype=np.float64)
+    dv_in = float(dv_in)
+    dv_out = float(dv_out)
+
+    if kernel.ndim != 1 or kernel.size < 3 or kernel.size % 2 == 0:
+        raise ValueError("kernel must be a 1D array with an odd length >= 3")
+
+    if not np.all(np.isfinite(kernel)) or np.any(kernel < 0.0):
+        raise ValueError("kernel must contain finite, nonnegative weights")
+
+    total = kernel.sum()
+    if not np.isfinite(total) or total <= 0.0:
+        raise ValueError("kernel must have a positive finite total weight")
+
+    if not np.isfinite(dv_in) or dv_in <= 0.0:
+        raise ValueError("dv_in must be positive and finite")
+
+    if not np.isfinite(dv_out) or dv_out <= 0.0:
+        raise ValueError("dv_out must be positive and finite")
+
+    kernel = kernel / total
+    if dv_in == dv_out:
+        return kernel.copy()
+
+    # Native bin edges and cumulative weight at those edges.
+    half_in = kernel.size // 2
+    edges_in = (np.arange(kernel.size + 1) - half_in - 0.5) * dv_in
+    cumulative = np.concatenate(([0.0], np.cumsum(kernel)))
+    cumulative /= cumulative[-1]
+
+    # Choose an odd number of output bins covering all native bins.
+    half_out = int(np.ceil(edges_in[-1] / dv_out - 0.5))
+    edges_out = (
+        np.arange(2 * half_out + 2) - half_out - 0.5
+    ) * dv_out
+
+    interpolate_cdf = PchipInterpolator(
+        edges_in, cumulative, extrapolate=False
+    )
+
+    # Outside the native support, cumulative weight stays at 0 or 1.
+    cumulative_out = interpolate_cdf(
+        np.clip(edges_out, edges_in[0], edges_in[-1])
+    )
+    resampled = np.diff(cumulative_out)
+
+    if np.any(resampled < -1e-14):
+        raise ValueError("Resampling produced negative LSF weights")
+
+    # Remove only tiny negative roundoff errors.
+    resampled = np.maximum(resampled, 0.0)
+    return resampled / resampled.sum()
+
+def apply_cos_lsf(flux, dv_sim, kernel):
+    """Convolve complete periodic mock sightlines with a tabulated LSF.
+
+    The kernel must be sampled at dv_sim, with zero velocity at its
+    middle element. Returns (smoothed_flux, dv_sim), preserving the
+    input shape and pixel grid.
+    """
+    flux = np.asarray(flux, dtype=np.float64)
+    kernel = np.asarray(kernel, dtype=np.float64)
+    dv_sim = float(dv_sim)
+
+    if flux.ndim not in (1, 2) or flux.size == 0 or flux.shape[-1] < 2:
+        raise ValueError(
+            "flux must be a nonempty 1D or 2D array with >= 2 pixels"
+        )
+
+    if not np.all(np.isfinite(flux)):
+        raise ValueError("flux must contain only finite values")
+
+    if not np.isfinite(dv_sim) or dv_sim <= 0.0:
+        raise ValueError("dv_sim must be positive and finite")
+
+    if kernel.ndim != 1 or kernel.size == 0 or kernel.size % 2 == 0:
+        raise ValueError("kernel must be a nonempty 1D array of odd length")
+
+    if not np.all(np.isfinite(kernel)) or np.any(kernel < 0.0):
+        raise ValueError("kernel must contain finite, nonnegative weights")
+
+    total = kernel.sum()
+    if not np.isfinite(total) or total <= 0.0:
+        raise ValueError("kernel must have a positive finite total weight")
+
+    smoothed = convolve1d(
+        flux,
+        weights=kernel / total,
+        axis=-1,
+        mode="wrap",
+        origin=0,
+    )
+
+    return smoothed, dv_sim

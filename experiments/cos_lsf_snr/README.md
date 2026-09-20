@@ -767,3 +767,8 @@ all stages remains to be added.
 
 The six pairwise instrument-processed comparisons and the S/N sweep have
 not yet been run.
+
+## S/N pilot
+Noiseless:       55.97%
+S/N=10000/pixel: 54.10%
+Noisy minus clean: -1.87 pp [-5.60, +1.87]
