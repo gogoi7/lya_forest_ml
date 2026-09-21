@@ -1,774 +1,250 @@
 # COS LSF and signal-to-noise experiment
 
-## Status
+## Current status
 
-**Noiseless Gaussian pilot completed. Full COS LSF and S/N experiment in progress.**
+**The first tabulated-LP1 noise pilot is complete. The full observing
+configuration remains provisional.**
+
+The observed spectrum `pg1048_all.dat` provides representative sampling
+and reported-error estimates. Classification results below come from
+processed synthetic spectra.
 
 - Branch: `experiment/cos-lsf-snr`
-- Starting point: `98c0976`, tagged `test-a-uvb-mean-flux`
-- Code and results checkpoint: `749a076`
-- Checkpoint tag: `cos-gaussian-pilot`
-- Observational spectra have not been used.
-- The cosmic-variance-floor experiment remains paused.
+- Foundation: [Test A mean-flux experiment](../uvb_mean_flux/README.md)
+- Earlier results: [Historical Gaussian pilot](gaussian_pilot.md)
+- Interactive analysis: [COS observation notebook](../../notebooks/cos_obs.ipynb)
 
-The completed pilot implements periodic Gaussian convolution and
-flux-conserving resampling, validates their numerical behavior, and
-measures their effects on four-class classification.
+## Main result
 
-The final deliverable remains a pipeline producing COS-realistic mock
-spectra and a thesis figure showing classifier accuracy versus S/N.
+Both conditions use the same LP1 response, 362-pixel output grid, frozen
+bundles, classifier settings, and train/test assignments. A separate
+classifier is trained and evaluated under each condition.
 
-## Scientific question
+| Condition | Four-class accuracy | 95% bootstrap interval |
+|---|---:|---:|
+| LP1, no added noise | 51.68% | [48.13, 55.22]% |
+| LP1, Gaussian noise with sigma = 0.07 | 35.07% | [31.34, 38.81]% |
 
-How much classification performance survives instrumental smoothing,
-resampling, and eventually observational noise after the ensemble mean
-flux has already been matched across simulation models?
+**Noisy minus clean: -16.60 percentage points,
+95% paired interval [-21.83, -11.38] pp.**
 
-This experiment builds on the
-[Test A mean-flux experiment](../uvb_mean_flux/README.md).
+Noise substantially reduces performance. Some discrimination survives
+among these processed mocks: the noisy accuracy interval remains above
+the balanced four-class chance level of 25%.
 
-The Gaussian used here is an initial approximation. The tabulated COS LSF
-and noise model have not yet been applied.
+### Recall by true class
+
+Recall is the fraction of examples from a true class classified correctly.
+
+| Model | Clean recall | Noisy recall |
+|---|---:|---:|
+| EX0 | 24.6% | 31.3% |
+| EX1 | 52.2% | 23.1% |
+| EX2 | 56.7% | 42.5% |
+| EX3 | 73.1% | 43.3% |
+
+EX2 and EX3 retain the highest noisy recall. The classifiers are trained
+separately, so individual class recalls can move in different directions
+while overall accuracy decreases.
 
 ## Frozen experimental setup
 
 | Setting | Value |
 |---|---|
-| Redshift | z = 0 |
-| Simulation models | EX0, EX1, EX2, EX3 |
-| Sightlines per model | 10,000 |
-| Native pixels per sightline | 2499 |
+| Simulation redshift | z = 0 |
+| Classes | EX0, EX1, EX2, EX3 |
+| Sightlines per class | 10,000 |
 | Velocity length per sightline | 2500 km/s |
-| Native pixel width | 2500 / 2499 = 1.0004001601 km/s |
+| Native sampling | 2499 pixels; 2500 / 2499 km/s per pixel |
+| LP1 pilot sampling | 362 pixels; 6.9060773481 km/s per pixel |
 | Bundle size | 15 sightlines |
-| Bundles per model | 666 |
-| Training bundles per model | 532 |
-| Test bundles per model | 134 |
-| Four-class training examples | 2128 |
-| Four-class test examples | 536 |
-| Features per sightline | 46 |
-| Features per bundle | 92: feature means and standard deviations |
-| Power-spectrum features | All 20 bins retained; `max_pk_bin=19` |
+| Training/test bundles per class | 532 / 134 |
+| Four-class training/test examples | 2128 / 536 |
+| Features per sightline/bundle | 46 / 92 |
+| Power-spectrum features | All 20 bins; max_pk_bin = 19 |
 | Split and classifier seed | 42 |
-| Noise added | None |
-| Four-class chance accuracy | 25% |
 
-All conditions use the same Test A manifest, calibration, feature
-extractor, classifier configuration, and train/test assignments.
+The model-specific optical-depth scales fitted on Test A training
+sightlines are reused without refitting.
 
-Manifest:
+- Manifest: `outputs/uvb_mean_flux/manifests/z0_b15_seed42.npz`
+- Calibration: `outputs/uvb_mean_flux/calibration/z0_b15_seed42.json`
 
-`outputs/uvb_mean_flux/manifests/z0_b15_seed42.npz`
+## Observational reference and assumptions
 
-Calibration:
+The working forest interval is **1220–1380 Angstrom**.
 
-`outputs/uvb_mean_flux/calibration/z0_b15_seed42.json`
+The known gap near 1300 Angstrom includes zero-error rows at approximately
+1301.02–1306.88 Angstrom. Invalid pixels are excluded from sampling/noise
+estimates and from the complete strong-trough windows.
 
-Sightline fingerprint:
+The three data columns are currently interpreted as wavelength, normalized
+flux, and its 1-sigma error. This interpretation and the continuum
+normalization should be confirmed with Taesun.
 
-`ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7`
+### Instrument response
 
-The optical-depth scale for each model was fitted using training
-sightlines in Test A. Those scales are reused without refitting.
+- Taesun confirmed lifetime position **LP1**.
+- **G130M/1291 and the nominal dispersion remain provisional.**
+- Table: `aa_LSFTable_G130M_1291_LP1_cn.dat`
+- Representative LSF profile: 1300 Angstrom.
+- Assumed native dispersion: 0.00997 Angstrom per pixel.
+- Native-bin weights are normalized and resampled through their cumulative
+  distribution using PCHIP, retaining the full tabulated support.
+- Periodic convolution is applied to complete simulated sightlines.
+
+One representative LSF profile is used throughout this pilot.
+Wavelength-dependent instrument modeling remains follow-up work.
+
+### Sampling and noise
+
+The output grid approximates the median velocity spacing between adjacent
+valid observed pixels while preserving each mock's 2500 km/s length.
+
+The median positive reported error over valid forest pixels is **0.0700**.
+Assuming a unit continuum and 1-sigma errors, this corresponds to
+approximately **S/N = 14.3 per pixel**.
+
+For `lp1_obs_noisy`, independent Gaussian noise with constant standard
+deviation 0.07 is added after convolution and resampling.
+
+Noise seeds are `20260921 + model_index`, where EX0–EX3 have indices 0–3.
+Flux values are retained outside [0, 1]. The existing logarithmic feature
+uses `-log(max(flux, 0) + 1e-10)`.
 
 ## Processing sequence
 
-1. Load the original optical depths.
-2. Apply the frozen model-specific Test A optical-depth scale.
-3. Convert to flux using `flux = exp(-tau_matched)`.
-4. Convolve the flux with the Gaussian LSF.
-5. Resample the smoothed flux for the rebinned conditions.
-6. Extract features using the actual output pixel width.
-7. Bundle features using the frozen manifest.
-8. Train and evaluate a separate classifier for each condition.
+1. Load optical depths and apply the frozen Test A scale.
+2. Convert to transmitted flux.
+3. Apply the tabulated LP1 response on the native simulation grid.
+4. Conservatively resample to 362 pixels.
+5. Check per-sightline mean-flux conservation.
+6. Add noise for the noisy condition.
+7. Extract features using the output pixel width and check finiteness.
+8. Build the frozen 15-sightline bundles.
+9. Train and evaluate one classifier per condition.
+10. Compare predictions using a paired bootstrap.
 
-Both training and test spectra receive the same instrument settings.
+Feature files record the processing settings, LSF checksum, noise seed,
+and sightline fingerprint.
 
-### Gaussian convolution
+## Uncertainty and scope
 
-Implementation: `apply_cos_gaussian` in
-[`src/instrument.py`](../../src/instrument.py).
+The bootstrap uses 50,000 resamples with seed 20260913. Its resampling
+unit is one of the 134 test-bundle IDs. Each draw keeps the four model-class
+examples together and uses the same sampled IDs across conditions.
+Intervals are the 2.5th and 97.5th percentiles.
 
-- Gaussian standard deviation: `sigma_kms = 7.96`.
-- Convolution acts along the final array axis.
-- Boundary mode: `wrap`, matching the periodic simulation boxes.
-- The kernel is normalized.
-- Convolution preserves the input grid and mean flux.
+These intervals are conditional on the fitted classifiers, current
+simulation volumes, frozen split, and one noise realization. Independent
+volume validation and additional noise realizations remain follow-up work.
 
-Two kernel extents were investigated:
+Other limits of the current pilot:
 
-| `truncate` | Approximate extent on each side | Kernel length |
-|---|---|---|
-| 4.0 | Four standard deviations | 65 pixels |
-| 8.0 | Eight standard deviations | 129 pixels |
+- Actual errors vary across the observed spectrum; constant independent
+  Gaussian noise is a first approximation.
+- Continuum uncertainty, line contamination, and coaddition effects require
+  further observational characterization.
+- Comparisons with the historical Gaussian runs also change sampling.
+  Several feature definitions depend on the pixel grid.
+- The observed forest currently provides at most **13 complete,
+  non-overlapping 2500 km/s chunks**, before ISM/metal masking. The present
+  classifier requires **15 sightlines per input**.
+- Strong-trough candidates require line identification before being used
+  for Ly-alpha absorber or absorber–galaxy analysis.
 
-Changing `truncate` changes the included tails, while the Gaussian
-standard deviation remains 7.96 km/s.
+## Notebook walkthrough
 
-The function default remains `truncate=4.0` to preserve the behavior of
-earlier calls. The eight-sigma experiment stages explicitly pass
-`truncate=8.0`.
+Open `notebooks/cos_obs.ipynb` locally in VS Code or Jupyter for interactive
+plots. The notebook was successfully restarted and run from top to bottom.
 
-### Flux-conserving resampling
+It covers:
 
-Implementation: `resample_flux` in
-[`src/instrument.py`](../../src/instrument.py).
+1. Observed flux, reported errors, the known gap, and usable coverage.
+2. The tabulated LP1 response and Gaussian comparison.
+3. An illustrative EX0 sightline, `MOCK_LOS = 9000`, with instrument
+   processing and added noise.
+4. Classification accuracies, bootstrap intervals, and confusion matrices.
+5. A dropdown viewer for eight strong-trough candidates.
 
-The input is treated as piecewise constant within each pixel. The
-cumulative flux integral is interpolated to the output pixel edges;
-differences of that integral give the output pixel averages.
+The inspection candidates use flux below 0.85 and complete, non-overlapping
+±250 km/s windows. Centers are selected flux minima. Error bars use the
+observed file's reported errors; line identifications remain pending.
 
-The full velocity interval is retained:
+## Reproduction
 
-- Input: 2499 pixels.
-- Output: 1249 pixels.
-- Output pixel width: `2500 / 1249 = 2.0016012810 km/s`.
-- Total velocity length: 2500 km/s.
+Run from the repository root with the project dependencies installed.
+The current development environment is Conda `lya_ml`.
 
-This replaces the initial proposal to discard one pixel and average
-adjacent pairs. No final input pixel is discarded.
+Required local inputs:
 
-The builder checks that each sightline's mean flux is preserved to an
-absolute tolerance of `1e-12`. Feature extraction receives `dv_out`.
+- `data/raw/EX0_spectra.hdf5` through `EX3_spectra.hdf5`
+- The frozen manifest and calibration listed above
+- `data/reference/cos_lsf/aa_LSFTable_G130M_1291_LP1_cn.dat`
+- `data/raw/observations/pg1048_all.dat` for the notebook
 
-## Numerical validation
+The following commands create a fresh LP1 run. Existing output artifacts
+are protected against overwriting.
 
-The instrument test module reported **11 passed**:
+### Build features and train
 
 ```bash
-python -m pytest tests/test_instrument.py -q
+python - <<'PY'
+from pathlib import Path
+from src.build_cos_features import build_cos_features
+from src.train_xgboost import run_training
+
+models = ("EX0", "EX1", "EX2", "EX3")
+root = Path("outputs/cos_lsf_snr")
+
+for stage in ("lp1_obs_clean", "lp1_obs_noisy"):
+    for model in models:
+        build_cos_features(model, stage)
+
+    run_training(
+        models=models,
+        condition="matched",
+        manifest_path=Path(
+            "outputs/uvb_mean_flux/manifests/z0_b15_seed42.npz"
+        ),
+        feature_dir=root / "features" / stage,
+        output_dir=root / "runs" / stage,
+        tag="z0_b15",
+        seed=42,
+        max_pk_bin=19,
+    )
+PY
 ```
 
-The checks cover:
-
-- Preservation of constant flux under convolution.
-- Convolution across the periodic boundary and impulse normalization.
-- Five Gaussian power-transfer measurements using periodic cosine modes.
-- Resampling of a known five-pixel input to three output pixels.
-- Preservation of a flat continuum under resampling.
-- Preservation of batch means, velocity length, and the original input.
-- Eight-sigma kernel power transfer across the full discrete Fourier grid.
-
-A separate reconstruction check also reproduced one cached native EX2
-training bundle using the frozen calibration and exact native pixel width.
-
-### Initial five-mode power-transfer check
-
-For a Gaussian with standard deviation sigma, the ideal power transfer is
-
-`P_smoothed(k) / P_original(k) = exp(-(k * sigma)**2)`.
-
-Here `k = 2*pi*f`, with units of s/km.
-
-These measurements used the original four-sigma kernel and convolution
-only. Each target was mapped to the nearest allowed periodic Fourier mode.
-
-| Target k | Actual k | Measured ratio | Ideal ratio at actual k |
-|---|---|---|---|
-| 0.020 | 0.020106 | 0.974729 | 0.974711 |
-| 0.050 | 0.050265 | 0.852153 | 0.852067 |
-| 0.100 | 0.100531 | 0.527207 | 0.527101 |
-| 0.200 | 0.201062 | 0.077181 | 0.077193 |
-| 0.300 | 0.299080 | 0.003460 | 0.003456 |
-
-All five passed with relative tolerance `5e-3`.
-
-These initial tests used the rounded pixel width `1.0004 km/s`.
-Production feature generation uses the exact value `2500 / 2499`.
-
-### Why the validation was extended
-
-The native power-spectrum features extend to approximately
-`3.14 s/km`, beyond the initial five test modes.
-
-Truncating the Gaussian at four standard deviations leaves residual
-high-k power above the ideal Gaussian transfer. A separate impulse-response
-calculation at `k ≈ 1.000283 s/km` gave approximately:
-
-- Four-sigma kernel power transfer: `1.85e-10`.
-- Ideal Gaussian power transfer: `2.93e-28`.
-
-Small residual signals can potentially remain useful in a noiseless
-classification experiment.
-
-The eight-sigma impulse-response test checks every mode on the discrete
-Fourier grid against the ideal transfer, using:
-
-- Relative tolerance: `1e-6`.
-- Absolute tolerance: `1e-24`.
-
-The absolute tolerance governs comparisons where the ideal transfer is
-extremely small. Passing this test does not establish relative agreement
-below that absolute floor.
-
-## Four-class results
-
-All conditions use mean-flux-matched spectra and the frozen setup above.
-
-| Stage | Kernel extent | Pixels | Accuracy | 95% accuracy CI |
-|---|---|---|---|---|
-| `native` | No LSF | 2499 | 84.89% | [80.97, 88.62]% |
-| `gaussian` | Four sigma | 2499 | 85.07% | [81.34, 88.62]% |
-| `gaussian_rebinned` | Four sigma | 1249 | 56.16% | [52.24, 60.07]% |
-| `gaussian_truncate8` | Eight sigma | 2499 | 60.63% | Not yet calculated |
-| `gaussian_rebinned_truncate8` | Eight sigma | 1249 | 55.97% | Not yet calculated |
-
-The saved eight-sigma summaries contain confidence intervals for paired
-accuracy differences, rather than individual accuracy intervals.
-
-### Paired accuracy differences
-
-Changes below are the first condition minus the second, in percentage
-points.
-
-| Comparison | Change | 95% paired CI |
-|---|---|---|
-| `gaussian - native` | +0.19 pp | [-1.68, +2.05] pp |
-| `gaussian_rebinned - native` | -28.73 pp | [-33.02, -24.44] pp |
-| `gaussian_rebinned - gaussian` | -28.92 pp | [-33.58, -24.25] pp |
-| `gaussian_truncate8 - gaussian` | -24.44 pp | [-28.36, -20.52] pp |
-| `gaussian_rebinned_truncate8 - gaussian_truncate8` | -4.66 pp | [-8.21, -1.12] pp |
-
-### Bootstrap method
-
-- 50,000 bootstrap resamples.
-- Random seed: `20260913`.
-- Resampling unit: paired test-bundle ID.
-- Number of paired test bundles: 134.
-- Each sampled bundle retains its four model-class examples together.
-- The same bundle draws are used across conditions.
-- Intervals are the 2.5th and 97.5th percentiles.
-
-These are exploratory intervals conditional on the fitted classifiers
-and frozen split. They do not include retraining uncertainty or uncertainty
-across independent cosmic realizations.
-
-## Findings and interpretation
-
-### 1. The original Gaussian-only accuracy was sensitive to truncation
-
-The initial four-sigma Gaussian gave 85.07%, close to the native 84.89%.
-
-Extending the kernel to eight sigma at the same Gaussian width and native
-sampling reduced accuracy to 60.63%. The paired decrease was 24.44 points,
-with an interval excluding zero.
-
-The original 85.07% result therefore cannot support a robust claim that
-Gaussian smoothing leaves classification performance unchanged.
-
-Residual high-k power is a plausible contributor. The feature families
-responsible for the accuracy change have not yet been isolated.
-
-### 2. Resampling produces an additional decrease with the longer kernel
-
-Using the eight-sigma kernel on both grids, resampling changes accuracy
-from 60.63% to 55.97%:
-
-`-4.66 pp, 95% CI [-8.21, -1.12] pp`.
-
-This comparison measures resampling together with its effects on the
-current feature representation.
-
-### 3. Correct pixel width does not make every feature grid-independent
-
-The current extractor has several dependencies on pixel sampling:
-
-- Power-spectrum bin edges are constructed from each grid's available
-  k range, so resampling changes the bin boundaries.
-- Fixed wavelet levels correspond to different physical velocity scales
-  when pixel width changes.
-- The gradient proxy uses `np.gradient(flux)` without velocity spacing.
-- Some statistical proxies use unweighted pixel sums.
-- The minimum peak-width selection is specified in pixels.
-
-The contribution of these effects to the remaining accuracy difference
-has not been measured.
-
-### 4. The current Gaussian-plus-resampling accuracy is 55.97%
-
-This is above the four-class chance level of 25% for this simulated,
-noiseless experiment.
-
-It does not yet establish performance on observed COS spectra or show
-that the remaining discrimination is uniquely caused by feedback physics.
-
-## Code and saved artifacts
-
-### Implementation
-
-- [`src/instrument.py`](../../src/instrument.py):
-  Gaussian convolution and conservative resampling.
-- [`src/build_cos_features.py`](../../src/build_cos_features.py):
-  Instrument-processed features using the frozen Test A setup.
-- [`tests/test_instrument.py`](../../tests/test_instrument.py):
-  Numerical validation.
-- [`src/summarize_cos_resolution.py`](../../src/summarize_cos_resolution.py):
-  Paired bootstrap summaries for the original three conditions.
-- [`src/train_xgboost.py`](../../src/train_xgboost.py):
-  Existing training implementation used for all conditions.
-
-### Tracked result summaries
-
-- [Original three-condition results](../../outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_resolution.json)
-- [Native-grid truncation comparison](../../outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_truncation.json)
-- [Eight-sigma resampling comparison](../../outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_resampling_truncate8.json)
-
-### Local inputs and generated outputs
-
-Reproduction requires the local raw spectra, frozen manifest, and native
-feature cache in addition to the tracked code and calibration.
-
-Relevant locations, relative to the repository root:
-
-- Raw spectra: `data/raw/EX0_spectra.hdf5` through `EX3_spectra.hdf5`.
-- Native features: `outputs/uvb_mean_flux/features/`.
-- Instrument-processed features:
-  `outputs/cos_lsf_snr/features/<stage>/z0_b15_EX*.npz`.
-- Fitted models, metrics, and predictions:
-  `outputs/cos_lsf_snr/runs/<stage>/z0_b15_s42/matched/EX0_EX1_EX2_EX3/`.
-
-Generated feature files contain the LOS features, bundled features,
-sightline fingerprint, and processing metadata.
-
-The current builder records kernel extent explicitly. The initial
-`gaussian` and `gaussian_rebinned` caches predate that metadata field;
-both used `truncate=4.0`.
-
-### Entry points
-
-Example command to build one feature file:
+### Summarize
 
 ```bash
-python -m src.build_cos_features \
-    --model EX0 \
-    --stage gaussian_rebinned_truncate8
+python -m src.summarize_cos_resolution \
+  --stages lp1_obs_clean lp1_obs_noisy \
+  --output outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_lp1_obs.json
 ```
 
-Four-class training uses `src.train_xgboost.run_training` with:
-
-- Models: `EX0`, `EX1`, `EX2`, `EX3`.
-- Condition: `matched`.
-- Frozen Test A manifest.
-- Stage-specific feature and run directories.
-- Tag: `z0_b15`.
-- Seed: `42`.
-- `max_pk_bin=19`.
-
-The original three-condition summary can be generated with:
-
-```bash
-python -m src.summarize_cos_resolution
-```
-
-Feature builders, training runs, and summary writers protect existing
-outputs from overwriting.
-
-The two eight-sigma comparison summaries were generated using terminal
-Python blocks. Their inputs and bootstrap settings are recorded in the
-JSON files and this README. A reusable comparison entry point covering
-all stages remains to be added.
-
-## Remaining work
-
-1. Review feature definitions that change with pixel sampling.
-2. Consolidate comparison and bootstrap code into a reusable entry point,
-   including individual accuracy intervals for the eight-sigma conditions.
-3. Incorporate the appropriate tabulated COS LSF once the observing setup
-   is established.
-4. Define the noise model and S/N convention, including whether S/N is
-   specified per pixel or per resolution element.
-5. Run the four-class and six pairwise instrument/noise experiments.
-6. Produce the accuracy-versus-S/N thesis figure with uncertainty estimates.
-7. Validate the observational processing once collaborator data are available.
-
-The six pairwise instrument-processed comparisons and the S/N sweep have
-not yet been run.# COS LSF and signal-to-noise experiment
-
-## Status
-
-**Noiseless Gaussian pilot completed. Full COS LSF and S/N experiment in progress.**
-
-- Branch: `experiment/cos-lsf-snr`
-- Starting point: `98c0976`, tagged `test-a-uvb-mean-flux`
-- Code and results checkpoint: `749a076`
-- Checkpoint tag: `cos-gaussian-pilot`
-- Observational spectra have not been used.
-- The cosmic-variance-floor experiment remains paused.
-
-The completed pilot implements periodic Gaussian convolution and
-flux-conserving resampling, validates their numerical behavior, and
-measures their effects on four-class classification.
-
-The final deliverable remains a pipeline producing COS-realistic mock
-spectra and a thesis figure showing classifier accuracy versus S/N.
-
-## Scientific question
-
-How much classification performance survives instrumental smoothing,
-resampling, and eventually observational noise after the ensemble mean
-flux has already been matched across simulation models?
-
-This experiment builds on the
-[Test A mean-flux experiment](../uvb_mean_flux/README.md).
-
-The Gaussian used here is an initial approximation. The tabulated COS LSF
-and noise model have not yet been applied.
-
-## Frozen experimental setup
-
-| Setting | Value |
-|---|---|
-| Redshift | z = 0 |
-| Simulation models | EX0, EX1, EX2, EX3 |
-| Sightlines per model | 10,000 |
-| Native pixels per sightline | 2499 |
-| Velocity length per sightline | 2500 km/s |
-| Native pixel width | 2500 / 2499 = 1.0004001601 km/s |
-| Bundle size | 15 sightlines |
-| Bundles per model | 666 |
-| Training bundles per model | 532 |
-| Test bundles per model | 134 |
-| Four-class training examples | 2128 |
-| Four-class test examples | 536 |
-| Features per sightline | 46 |
-| Features per bundle | 92: feature means and standard deviations |
-| Power-spectrum features | All 20 bins retained; `max_pk_bin=19` |
-| Split and classifier seed | 42 |
-| Noise added | None |
-| Four-class chance accuracy | 25% |
-
-All conditions use the same Test A manifest, calibration, feature
-extractor, classifier configuration, and train/test assignments.
-
-Manifest:
-
-`outputs/uvb_mean_flux/manifests/z0_b15_seed42.npz`
-
-Calibration:
-
-`outputs/uvb_mean_flux/calibration/z0_b15_seed42.json`
-
-Sightline fingerprint:
-
-`ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7`
-
-The optical-depth scale for each model was fitted using training
-sightlines in Test A. Those scales are reused without refitting.
-
-## Processing sequence
-
-1. Load the original optical depths.
-2. Apply the frozen model-specific Test A optical-depth scale.
-3. Convert to flux using `flux = exp(-tau_matched)`.
-4. Convolve the flux with the Gaussian LSF.
-5. Resample the smoothed flux for the rebinned conditions.
-6. Extract features using the actual output pixel width.
-7. Bundle features using the frozen manifest.
-8. Train and evaluate a separate classifier for each condition.
-
-Both training and test spectra receive the same instrument settings.
-
-### Gaussian convolution
-
-Implementation: `apply_cos_gaussian` in
-[`src/instrument.py`](../../src/instrument.py).
-
-- Gaussian standard deviation: `sigma_kms = 7.96`.
-- Convolution acts along the final array axis.
-- Boundary mode: `wrap`, matching the periodic simulation boxes.
-- The kernel is normalized.
-- Convolution preserves the input grid and mean flux.
-
-Two kernel extents were investigated:
-
-| `truncate` | Approximate extent on each side | Kernel length |
-|---|---|---|
-| 4.0 | Four standard deviations | 65 pixels |
-| 8.0 | Eight standard deviations | 129 pixels |
-
-Changing `truncate` changes the included tails, while the Gaussian
-standard deviation remains 7.96 km/s.
-
-The function default remains `truncate=4.0` to preserve the behavior of
-earlier calls. The eight-sigma experiment stages explicitly pass
-`truncate=8.0`.
-
-### Flux-conserving resampling
-
-Implementation: `resample_flux` in
-[`src/instrument.py`](../../src/instrument.py).
-
-The input is treated as piecewise constant within each pixel. The
-cumulative flux integral is interpolated to the output pixel edges;
-differences of that integral give the output pixel averages.
-
-The full velocity interval is retained:
-
-- Input: 2499 pixels.
-- Output: 1249 pixels.
-- Output pixel width: `2500 / 1249 = 2.0016012810 km/s`.
-- Total velocity length: 2500 km/s.
-
-This replaces the initial proposal to discard one pixel and average
-adjacent pairs. No final input pixel is discarded.
-
-The builder checks that each sightline's mean flux is preserved to an
-absolute tolerance of `1e-12`. Feature extraction receives `dv_out`.
-
-## Numerical validation
-
-The instrument test module reported **11 passed**:
-
-```bash
-python -m pytest tests/test_instrument.py -q
-```
-
-The checks cover:
-
-- Preservation of constant flux under convolution.
-- Convolution across the periodic boundary and impulse normalization.
-- Five Gaussian power-transfer measurements using periodic cosine modes.
-- Resampling of a known five-pixel input to three output pixels.
-- Preservation of a flat continuum under resampling.
-- Preservation of batch means, velocity length, and the original input.
-- Eight-sigma kernel power transfer across the full discrete Fourier grid.
-
-A separate reconstruction check also reproduced one cached native EX2
-training bundle using the frozen calibration and exact native pixel width.
-
-### Initial five-mode power-transfer check
-
-For a Gaussian with standard deviation sigma, the ideal power transfer is
-
-`P_smoothed(k) / P_original(k) = exp(-(k * sigma)**2)`.
-
-Here `k = 2*pi*f`, with units of s/km.
-
-These measurements used the original four-sigma kernel and convolution
-only. Each target was mapped to the nearest allowed periodic Fourier mode.
-
-| Target k | Actual k | Measured ratio | Ideal ratio at actual k |
-|---|---|---|---|
-| 0.020 | 0.020106 | 0.974729 | 0.974711 |
-| 0.050 | 0.050265 | 0.852153 | 0.852067 |
-| 0.100 | 0.100531 | 0.527207 | 0.527101 |
-| 0.200 | 0.201062 | 0.077181 | 0.077193 |
-| 0.300 | 0.299080 | 0.003460 | 0.003456 |
-
-All five passed with relative tolerance `5e-3`.
-
-These initial tests used the rounded pixel width `1.0004 km/s`.
-Production feature generation uses the exact value `2500 / 2499`.
-
-### Why the validation was extended
-
-The native power-spectrum features extend to approximately
-`3.14 s/km`, beyond the initial five test modes.
-
-Truncating the Gaussian at four standard deviations leaves residual
-high-k power above the ideal Gaussian transfer. A separate impulse-response
-calculation at `k ≈ 1.000283 s/km` gave approximately:
-
-- Four-sigma kernel power transfer: `1.85e-10`.
-- Ideal Gaussian power transfer: `2.93e-28`.
-
-Small residual signals can potentially remain useful in a noiseless
-classification experiment.
-
-The eight-sigma impulse-response test checks every mode on the discrete
-Fourier grid against the ideal transfer, using:
-
-- Relative tolerance: `1e-6`.
-- Absolute tolerance: `1e-24`.
-
-The absolute tolerance governs comparisons where the ideal transfer is
-extremely small. Passing this test does not establish relative agreement
-below that absolute floor.
-
-## Four-class results
-
-All conditions use mean-flux-matched spectra and the frozen setup above.
-
-| Stage | Kernel extent | Pixels | Accuracy | 95% accuracy CI |
-|---|---|---|---|---|
-| `native` | No LSF | 2499 | 84.89% | [80.97, 88.62]% |
-| `gaussian` | Four sigma | 2499 | 85.07% | [81.34, 88.62]% |
-| `gaussian_rebinned` | Four sigma | 1249 | 56.16% | [52.24, 60.07]% |
-| `gaussian_truncate8` | Eight sigma | 2499 | 60.63% | Not yet calculated |
-| `gaussian_rebinned_truncate8` | Eight sigma | 1249 | 55.97% | Not yet calculated |
-
-The saved eight-sigma summaries contain confidence intervals for paired
-accuracy differences, rather than individual accuracy intervals.
-
-### Paired accuracy differences
-
-Changes below are the first condition minus the second, in percentage
-points.
-
-| Comparison | Change | 95% paired CI |
-|---|---|---|
-| `gaussian - native` | +0.19 pp | [-1.68, +2.05] pp |
-| `gaussian_rebinned - native` | -28.73 pp | [-33.02, -24.44] pp |
-| `gaussian_rebinned - gaussian` | -28.92 pp | [-33.58, -24.25] pp |
-| `gaussian_truncate8 - gaussian` | -24.44 pp | [-28.36, -20.52] pp |
-| `gaussian_rebinned_truncate8 - gaussian_truncate8` | -4.66 pp | [-8.21, -1.12] pp |
-
-### Bootstrap method
-
-- 50,000 bootstrap resamples.
-- Random seed: `20260913`.
-- Resampling unit: paired test-bundle ID.
-- Number of paired test bundles: 134.
-- Each sampled bundle retains its four model-class examples together.
-- The same bundle draws are used across conditions.
-- Intervals are the 2.5th and 97.5th percentiles.
-
-These are exploratory intervals conditional on the fitted classifiers
-and frozen split. They do not include retraining uncertainty or uncertainty
-across independent cosmic realizations.
-
-## Findings and interpretation
-
-### 1. The original Gaussian-only accuracy was sensitive to truncation
-
-The initial four-sigma Gaussian gave 85.07%, close to the native 84.89%.
-
-Extending the kernel to eight sigma at the same Gaussian width and native
-sampling reduced accuracy to 60.63%. The paired decrease was 24.44 points,
-with an interval excluding zero.
-
-The original 85.07% result therefore cannot support a robust claim that
-Gaussian smoothing leaves classification performance unchanged.
-
-Residual high-k power is a plausible contributor. The feature families
-responsible for the accuracy change have not yet been isolated.
-
-### 2. Resampling produces an additional decrease with the longer kernel
-
-Using the eight-sigma kernel on both grids, resampling changes accuracy
-from 60.63% to 55.97%:
-
-`-4.66 pp, 95% CI [-8.21, -1.12] pp`.
-
-This comparison measures resampling together with its effects on the
-current feature representation.
-
-### 3. Correct pixel width does not make every feature grid-independent
-
-The current extractor has several dependencies on pixel sampling:
-
-- Power-spectrum bin edges are constructed from each grid's available
-  k range, so resampling changes the bin boundaries.
-- Fixed wavelet levels correspond to different physical velocity scales
-  when pixel width changes.
-- The gradient proxy uses `np.gradient(flux)` without velocity spacing.
-- Some statistical proxies use unweighted pixel sums.
-- The minimum peak-width selection is specified in pixels.
-
-The contribution of these effects to the remaining accuracy difference
-has not been measured.
-
-### 4. The current Gaussian-plus-resampling accuracy is 55.97%
-
-This is above the four-class chance level of 25% for this simulated,
-noiseless experiment.
-
-It does not yet establish performance on observed COS spectra or show
-that the remaining discrimination is uniquely caused by feedback physics.
-
-## Code and saved artifacts
-
-### Implementation
-
-- [`src/instrument.py`](../../src/instrument.py):
-  Gaussian convolution and conservative resampling.
-- [`src/build_cos_features.py`](../../src/build_cos_features.py):
-  Instrument-processed features using the frozen Test A setup.
-- [`tests/test_instrument.py`](../../tests/test_instrument.py):
-  Numerical validation.
-- [`src/summarize_cos_resolution.py`](../../src/summarize_cos_resolution.py):
-  Paired bootstrap summaries for the original three conditions.
-- [`src/train_xgboost.py`](../../src/train_xgboost.py):
-  Existing training implementation used for all conditions.
-
-### Tracked result summaries
-
-- [Original three-condition results](../../outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_resolution.json)
-- [Native-grid truncation comparison](../../outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_truncation.json)
-- [Eight-sigma resampling comparison](../../outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_resampling_truncate8.json)
-
-### Local inputs and generated outputs
-
-Reproduction requires the local raw spectra, frozen manifest, and native
-feature cache in addition to the tracked code and calibration.
-
-Relevant locations, relative to the repository root:
-
-- Raw spectra: `data/raw/EX0_spectra.hdf5` through `EX3_spectra.hdf5`.
-- Native features: `outputs/uvb_mean_flux/features/`.
-- Instrument-processed features:
-  `outputs/cos_lsf_snr/features/<stage>/z0_b15_EX*.npz`.
-- Fitted models, metrics, and predictions:
-  `outputs/cos_lsf_snr/runs/<stage>/z0_b15_s42/matched/EX0_EX1_EX2_EX3/`.
-
-Generated feature files contain the LOS features, bundled features,
-sightline fingerprint, and processing metadata.
-
-The current builder records kernel extent explicitly. The initial
-`gaussian` and `gaussian_rebinned` caches predate that metadata field;
-both used `truncate=4.0`.
-
-### Entry points
-
-Example command to build one feature file:
-
-```bash
-python -m src.build_cos_features \
-    --model EX0 \
-    --stage gaussian_rebinned_truncate8
-```
-
-Four-class training uses `src.train_xgboost.run_training` with:
-
-- Models: `EX0`, `EX1`, `EX2`, `EX3`.
-- Condition: `matched`.
-- Frozen Test A manifest.
-- Stage-specific feature and run directories.
-- Tag: `z0_b15`.
-- Seed: `42`.
-- `max_pk_bin=19`.
-
-The original three-condition summary can be generated with:
-
-```bash
-python -m src.summarize_cos_resolution
-```
-
-Feature builders, training runs, and summary writers protect existing
-outputs from overwriting.
-
-The two eight-sigma comparison summaries were generated using terminal
-Python blocks. Their inputs and bootstrap settings are recorded in the
-JSON files and this README. A reusable comparison entry point covering
-all stages remains to be added.
-
-## Remaining work
-
-1. Review feature definitions that change with pixel sampling.
-2. Consolidate comparison and bootstrap code into a reusable entry point,
-   including individual accuracy intervals for the eight-sigma conditions.
-3. Incorporate the appropriate tabulated COS LSF once the observing setup
-   is established.
-4. Define the noise model and S/N convention, including whether S/N is
-   specified per pixel or per resolution element.
-5. Run the four-class and six pairwise instrument/noise experiments.
-6. Produce the accuracy-versus-S/N thesis figure with uncertainty estimates.
-7. Validate the observational processing once collaborator data are available.
-
-The six pairwise instrument-processed comparisons and the S/N sweep have
-not yet been run.
-
-## S/N pilot
-Noiseless:       55.97%
-S/N=10000/pixel: 54.10%
-Noisy minus clean: -1.87 pp [-5.60, +1.87]
+### Artifact locations
+
+- Features: `outputs/cos_lsf_snr/features/<stage>/z0_b15_EX*.npz`
+- Models, metrics, and predictions:
+  `outputs/cos_lsf_snr/runs/<stage>/z0_b15_s42/matched/EX0_EX1_EX2_EX3/`
+- Summary:
+  `outputs/cos_lsf_snr/summary/z0_b15_s42_four_class_lp1_obs.json`
+
+## Questions for Taesun
+
+1. What are the exact quasar identity and redshift?
+2. Can we confirm the grating, central wavelength settings, binning, and
+   coaddition procedure, ideally using the original FITS metadata?
+3. How were the continuum and reported errors estimated? Are neighboring
+   pixel errors correlated?
+4. Which strong troughs are Galactic/ISM, metal, or intrinsic lines, and
+   what masks should we use?
+5. Are galaxy positions and redshifts available for investigating the
+   identified absorbers?
+6. Can we obtain the remaining spectra and their observing metadata?
+
+The next scientific priorities are to confirm the observational setup,
+establish contamination masks and usable path lengths, and test more
+realistic instrument/noise models.

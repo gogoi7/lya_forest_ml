@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "models": [
+    "EX0",
+    "EX1",
+    "EX2",
+    "EX3"
+  ],
+  "n_test_examples": 536,
+  "n_paired_bundles": 134,
+  "n_bootstrap": 50000,
+  "seed": 20260913,
+  "confidence": 0.95,
+  "method": "paired bootstrap by test-bundle ID",
+  "accuracy": {
+    "lp1_obs_clean": {
+      "accuracy": 0.5167910447761194,
+      "ci_low": 0.48134328358208955,
+      "ci_high": 0.5522388059701493
+    },
+    "lp1_obs_noisy": {
+      "accuracy": 0.35074626865671643,
+      "ci_low": 0.31343283582089554,
+      "ci_high": 0.3880597014925373
+    }
+  },
+  "changes": {
+    "lp1_obs_noisy - lp1_obs_clean": {
+      "difference_pp": -16.604477611940293,
+      "ci_low_pp": -21.828358208955223,
+      "ci_high_pp": -11.380597014925375
+    }
+  }
+}

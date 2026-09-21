@@ -2,12 +2,31 @@
 
 import json
 from pathlib import Path
+import argparse
 
 import numpy as np
 
 
 def main():
-    stages = ("native", "gaussian", "gaussian_rebinned")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--stages",
+        nargs="+",
+        default=("native", "gaussian", "gaussian_rebinned"),
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path(
+            "outputs/cos_lsf_snr/summary/"
+            "z0_b15_s42_four_class_resolution.json"
+        ),
+    )
+    args = parser.parse_args()
+    stages = tuple(args.stages)
+
+    if len(stages) < 2 or len(set(stages)) != len(stages):
+        parser.error("Provide at least two distinct stages.")
     runs_root = Path("outputs/cos_lsf_snr/runs")
     run_suffix = Path("z0_b15_s42/matched/EX0_EX1_EX2_EX3")
 
@@ -30,7 +49,7 @@ def main():
                 )
             }
 
-    reference = predictions["native"]
+    reference = predictions[stages[0]]
 
     # Paired comparisons require identical examples in identical order.
     for stage in stages:
@@ -116,9 +135,9 @@ def main():
         )
 
     comparisons = [
-        ("gaussian - native", 1, 0),
-        ("gaussian_rebinned - native", 2, 0),
-        ("gaussian_rebinned - gaussian", 2, 1),
+        (f"{stages[after]} - {stages[before]}", after, before)
+        for after in range(1, len(stages))
+        for before in range(after)
     ]
 
     print(f"\n{'Comparison':<32} {'Change':>10} {'95% CI':>24}")
@@ -150,10 +169,7 @@ def main():
             f"[{low:+.2f}, {high:+.2f}] pp"
         )
 
-    output_path = Path(
-        "outputs/cos_lsf_snr/summary/"
-        "z0_b15_s42_four_class_resolution.json"
-    )
+    output_path = args.output
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with output_path.open("x") as handle:

@@ -2,17 +2,26 @@
 
 import argparse
 import json
+import hashlib
 from pathlib import Path
 
 import h5py
 import numpy as np
 
 from .feature_extraction import extract_combined_features, bundle_features
-from .instrument import apply_cos_gaussian, resample_flux
+from .instrument import apply_cos_gaussian, resample_flux, apply_cos_lsf, load_cos_lsf, resample_lsf
 from .manifests import load_manifest
 
+C_KMS = 299792.458
 
 MODELS = ("EX0", "EX1", "EX2", "EX3")
+
+SIGMA_KMS = 7.96
+N_PIXELS_OUT = 1249
+
+TEST_A_ROOT = Path("outputs/uvb_mean_flux")
+OUTPUT_ROOT = Path("outputs/cos_lsf_snr")
+
 TRUNCATE_BY_STAGE = {
     "gaussian": 4.0,
     "gaussian_rebinned": 4.0,
@@ -20,14 +29,49 @@ TRUNCATE_BY_STAGE = {
     "gaussian_rebinned_truncate8": 8.0,
     "gaussian_rebinned_truncate8_snr10000": 8.0,
 }
+LP1_STAGES = ("lp1_obs_clean", "lp1_obs_noisy")
+STAGES = tuple(TRUNCATE_BY_STAGE) + LP1_STAGES
 
-STAGES = tuple(TRUNCATE_BY_STAGE)
+LP1_LSF_PATH = Path("data/reference/cos_lsf/aa_LSFTable_G130M_1291_LP1_cn.dat")
+LP1_WAVELENGTH_A = 1300.0
+LP1_DISPERSION_A_PER_PIXEL = 0.00997  # Nominal G130M dispersion
+LP1_N_PIXELS_OUT = 362
+LP1_NOISE_SIGMA = 0.07
 
-SIGMA_KMS = 7.96
-N_PIXELS_OUT = 1249
+def prepare_lp1_flux(flux, dv_sim):
+    """Apply the LP1 LSF and resample to the LP1 pixel grid."""
+    wavelengths, kernels = load_cos_lsf(LP1_LSF_PATH)
 
-TEST_A_ROOT = Path("outputs/uvb_mean_flux")
-OUTPUT_ROOT = Path("outputs/cos_lsf_snr")
+    index = int(np.argmin(np.abs(wavelengths - LP1_WAVELENGTH_A)))
+    wavelength = float(wavelengths[index])
+
+    dv_lsf = C_KMS * LP1_DISPERSION_A_PER_PIXEL / wavelength
+    kernel = resample_lsf(kernels[:, index], dv_lsf, dv_sim)
+
+    # Convolve each sightline with the LP1 LSF kernel. Convolve on the simulation pixel grid, then resample to the LP1 pixel grid.
+    flux, dv_out = apply_cos_lsf(flux, dv_sim, kernel)
+    flux, dv_out = resample_flux(flux, dv_out, n_pixels_out=LP1_N_PIXELS_OUT)
+
+    lsf_metadata = {
+        "lsf_model": "tabulated_cos",
+        "lsf_lifetime_position": 1,
+        "lsf_grating": "G130M",
+        "lsf_cenwave": 1291,
+        "lsf_wavelength_A": wavelength,
+        "lsf_dispersion_A_per_pixel": LP1_DISPERSION_A_PER_PIXEL,
+        "lsf_configuration_provisional": True,
+        "lsf_file": str(LP1_LSF_PATH),
+        "lsf_sha256": hashlib.sha256(LP1_LSF_PATH.read_bytes()).hexdigest(),
+        "lsf_resampling": "PCHIP cumulative native-pixel weights",
+        "lsf_kernel_pixels": int(kernel.size),
+        "observation_reference": "pg1048_all.dat",
+        "observation_range_A": [1220.0, 1380.0],
+        "sampling_convention": "median valid adjacent pixel velocity spacing",
+        "pilot_noise_sigma": LP1_NOISE_SIGMA,
+        "noise_convention": "median reported error over valid pixels",
+    }
+
+    return flux, dv_out, lsf_metadata
 
 
 def build_cos_features(model, stage):
@@ -93,27 +137,32 @@ def build_cos_features(model, stage):
     del tau
 
     mean_flux_before = flux.mean(axis=-1)
+    if stage in LP1_STAGES:
+        truncate = None
+        flux, dv_out, lsf_metadata = prepare_lp1_flux(flux, dv_sim)
+    else:
+        truncate = TRUNCATE_BY_STAGE[stage]
+        lsf_metadata = {"lsf_model": "gaussian"}
 
-    truncate = TRUNCATE_BY_STAGE[stage]
-
-    flux, dv_out = apply_cos_gaussian(
-        flux,
-        dv_sim=dv_sim,
-        sigma_kms=SIGMA_KMS,
-        truncate=truncate,
-    )
-
-    if stage in (
-        "gaussian_rebinned",
-        "gaussian_rebinned_truncate8",
-        "gaussian_rebinned_truncate8_snr10000",
-    ):
-        flux, dv_out = resample_flux(
+        flux, dv_out = apply_cos_gaussian(
             flux,
-            dv_in=dv_out,
-            n_pixels_out=N_PIXELS_OUT,
+            dv_sim=dv_sim,
+            sigma_kms=SIGMA_KMS,
+            truncate=truncate,
         )
 
+        if stage in (
+            "gaussian_rebinned",
+            "gaussian_rebinned_truncate8",
+            "gaussian_rebinned_truncate8_snr10000",
+        ):
+            flux, dv_out = resample_flux(
+                flux,
+                dv_in=dv_out,
+                n_pixels_out=N_PIXELS_OUT,
+            )
+
+    # Check conservation before adding noise.
     if not np.allclose(
         flux.mean(axis=-1),
         mean_flux_before,
@@ -121,24 +170,29 @@ def build_cos_features(model, stage):
         atol=1e-12,
     ):
         raise RuntimeError("Instrument processing changed the mean flux")
-    
-    snr_per_pixel = None
+
+    noise_sigma = None
     noise_seed = None
 
     if stage == "gaussian_rebinned_truncate8_snr10000":
+        noise_sigma = 1.0 / 10000.0
+        noise_seed = 20260914 + MODELS.index(model)
+    elif stage == "lp1_obs_noisy":
+        noise_sigma = LP1_NOISE_SIGMA
+        noise_seed = 20260921 + MODELS.index(model)
+
+    snr_per_pixel = None if noise_sigma is None else 1.0 / noise_sigma
+
+    if noise_sigma is not None:
         if np.any(flux < 0.0):
             raise RuntimeError("Expected nonnegative clean flux")
 
-        snr_per_pixel = 10000.0
-        noise_seed = 20260914 + MODELS.index(model)
         rng = np.random.default_rng(noise_seed)
-
         flux = flux + rng.normal(
             loc=0.0,
-            scale=1.0 / snr_per_pixel,
+            scale=noise_sigma,
             size=flux.shape,
         )
-
     negative_flux_fraction = float(np.mean(flux < 0.0))
 
     print(
@@ -163,8 +217,10 @@ def build_cos_features(model, stage):
         "condition": "matched",
         "stage": stage,
         "redshift": 0.0,
-        "sigma_kms": SIGMA_KMS,
+        "sigma_kms": None if stage in LP1_STAGES else SIGMA_KMS,
         "truncate": truncate,
+        **lsf_metadata,
+        "noise_sigma": noise_sigma,
         "noise_added": snr_per_pixel is not None,
         "snr_per_pixel": snr_per_pixel,
         "noise_seed": noise_seed,
@@ -206,7 +262,7 @@ def build_cos_features(model, stage):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Build matched Gaussian-LSF feature files.",
+        description="Build matched Gaussian or tabulated COS-LSF feature files.",
     )
     parser.add_argument("--model", required=True, choices=MODELS)
     parser.add_argument("--stage", required=True, choices=STAGES)
