@@ -2,8 +2,9 @@
 
 ## Current status
 
-**The first tabulated-LP1 noise pilot is complete. The full observing
-configuration remains provisional.**
+**The LP1 S/N sweep is complete: four-class and six binary tasks,
+six S/N levels, and three noise realizations per level. The full
+observing configuration remains provisional.**
 
 The observed spectrum `pg1048_all.dat` provides representative sampling
 and reported-error estimates. Classification results below come from
@@ -14,7 +15,86 @@ processed synthetic spectra.
 - Earlier results: [Historical Gaussian pilot](gaussian_pilot.md)
 - Interactive analysis: [COS observation notebook](../../notebooks/cos_obs.ipynb)
 
-## Main result
+## Accuracy versus S/N
+
+The sweep retains the frozen z = 0 calibration, 15-sightline bundles,
+train/test split, all 92 bundled features, LP1 response, and 362-pixel
+output grid. Split and classifier seeds remain 42.
+
+Each task is fitted separately for every S/N and noise realization.
+The sweep contains 126 noisy fits and seven noiseless references.
+Binary classifiers use 1064 training and 268 test examples;
+the four-class classifier uses 2128 and 536.
+
+### Noise convention
+
+Continuum S/N is specified per nominal resolution element. With six
+native pixels per resel and three native pixels per output bin, the
+adopted convention is two independent bins per resel:
+
+sigma_bin = sqrt(2) / SNR_resel.
+
+Independent Gaussian noise is added after convolution and resampling.
+Noise seeds are 20260929, 20260930, and 20261001. Within each model and
+seed, the same standard-normal draws are scaled across S/N levels.
+Noisy flux is not clipped.
+
+The synthetic self-check validates this noise convention. It does not
+establish that neighboring bins in the observed coadd are uncorrelated.
+
+The exact S/N = 20 condition uses sigma_bin = 0.0707107; the earlier
+single-noise pilot used sigma_bin = 0.07 and different noise seeds.
+
+### Results
+
+Accuracies are percentages. Finite-S/N values are means across three
+noise realizations; the noiseless row gives each task's reference fit.
+
+| S/N per resel | Four-class | EX0–EX1 | EX0–EX2 | EX0–EX3 | EX1–EX2 | EX1–EX3 | EX2–EX3 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| No added noise | 51.68 | 57.84 | 70.52 | 77.99 | 77.24 | 80.22 | 85.82 |
+| 10 | 31.59 | 50.62 | 53.23 | 57.09 | 53.48 | 53.98 | 64.93 |
+| 15 | 32.71 | 53.86 | 54.48 | 57.71 | 56.09 | 56.22 | 67.29 |
+| 20 | 30.91 | 53.11 | 57.84 | 59.08 | 55.60 | 59.58 | 67.16 |
+| 30 | 36.26 | 52.74 | 59.20 | 63.93 | 58.58 | 64.43 | 69.53 |
+| 50 | 39.55 | 52.86 | 61.44 | 65.55 | 62.19 | 67.04 | 72.89 |
+| 80 | 39.93 | 51.00 | 62.56 | 67.04 | 66.04 | 68.28 | 72.01 |
+
+At S/N = 80, four-class accuracy is **39.93% [37.31, 42.54]%**,
+compared with **51.68% [48.13, 55.22]%** without added noise.
+The paired change is **−11.75 pp [−15.80, −7.65] pp**.
+
+All six four-class paired intervals exclude zero in the negative
+direction. Their accuracy intervals remain above the balanced
+four-class chance level of 25%.
+
+Binary performance depends strongly on the class pair. EX0–EX1 mean
+accuracy remains near its 50% chance level, while EX2–EX3 has the
+highest mean binary accuracy at every tested S/N.
+
+### Sweep workflow and outputs
+
+Starting from the LP1 clean features described below, run the S/N
+sweep cells in `notebooks/cos_obs.ipynb` in order. They use:
+
+- `src/snr_sweep.py`: clean-flux caching and noisy feature generation.
+- `src/snr_training.py`: fitting, validation, and reuse of completed runs.
+- `src/snr_results.py`: paired bootstrap summaries.
+- `src/snr_plots.py`: interactive and static figures.
+
+Outputs are under `outputs/cos_lsf_snr/snr_sweep/`:
+
+- `summary/training_runs.csv`: index of all 133 runs.
+- `summary/clean_accuracy.csv`: noiseless estimates and intervals.
+- `summary/snr_accuracy.csv`: noisy means, intervals, and paired changes.
+- `summary/seed_accuracy.csv`: individual noise-realization accuracies.
+- `summary/bootstrap_inputs.npz`: aligned bundle scores and shared draws.
+- `summary/bootstrap_metadata.json`: method, settings, and checksums.
+- `figures/accuracy_vs_snr.html`: interactive seven-panel figure.
+- `figures/accuracy_vs_snr.pdf`: vector figure.
+- `figures/accuracy_vs_snr.png`: 300-dpi figure.
+
+## Earlier single-noise pilot
 
 Both conditions use the same LP1 response, 362-pixel output grid, frozen
 bundles, classifier settings, and train/test assignments. A separate
@@ -130,14 +210,21 @@ and sightline fingerprint.
 
 ## Uncertainty and scope
 
-The bootstrap uses 50,000 resamples with seed 20260913. Its resampling
-unit is one of the 134 test-bundle IDs. Each draw keeps the four model-class
-examples together and uses the same sampled IDs across conditions.
-Intervals are the 2.5th and 97.5th percentiles.
+The sweep uses 50,000 bootstrap resamples with seed 20260913.
+The resampling unit is one of the 134 held-out bundle IDs. Each draw
+retains all corresponding class examples and all three noise
+realizations. Accuracy is averaged across the realizations within
+each sampled bundle.
 
-These intervals are conditional on the fitted classifiers, current
-simulation volumes, frozen split, and one noise realization. Independent
-volume validation and additional noise realizations remain follow-up work.
+The same bundle draws are used across all tasks, S/N levels, and
+noiseless references. Intervals are pointwise 2.5th–97.5th percentiles;
+changes from noiseless use paired bootstrap differences.
+
+These intervals are conditional on the fitted classifiers, frozen
+split, current simulation volumes, and three sampled noise realizations.
+They do not include uncertainty from retraining, additional noise
+realizations, or independent simulation volumes. The earlier
+single-noise pilot used one realization.
 
 Other limits of the current pilot:
 
@@ -171,7 +258,7 @@ The inspection candidates use flux below 0.85 and complete, non-overlapping
 ±250 km/s windows. Centers are selected flux minima. Error bars use the
 observed file's reported errors; line identifications remain pending.
 
-## Reproduction
+## Reproducing the earlier single-noise pilot
 
 Run from the repository root with the project dependencies installed.
 The current development environment is Conda `lya_ml`.

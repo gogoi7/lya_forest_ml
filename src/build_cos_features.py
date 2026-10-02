@@ -38,9 +38,10 @@ LP1_DISPERSION_A_PER_PIXEL = 0.00997  # Nominal G130M dispersion
 LP1_N_PIXELS_OUT = 362
 LP1_NOISE_SIGMA = 0.07
 
-def prepare_lp1_flux(flux, dv_sim):
+def prepare_lp1_flux(flux, dv_sim, lsf_path=LP1_LSF_PATH):
     """Apply the LP1 LSF and resample to the LP1 pixel grid."""
-    wavelengths, kernels = load_cos_lsf(LP1_LSF_PATH)
+    lsf_path = Path(lsf_path)
+    wavelengths, kernels = load_cos_lsf(lsf_path)
 
     index = int(np.argmin(np.abs(wavelengths - LP1_WAVELENGTH_A)))
     wavelength = float(wavelengths[index])
@@ -60,8 +61,8 @@ def prepare_lp1_flux(flux, dv_sim):
         "lsf_wavelength_A": wavelength,
         "lsf_dispersion_A_per_pixel": LP1_DISPERSION_A_PER_PIXEL,
         "lsf_configuration_provisional": True,
-        "lsf_file": str(LP1_LSF_PATH),
-        "lsf_sha256": hashlib.sha256(LP1_LSF_PATH.read_bytes()).hexdigest(),
+        "lsf_file": str(lsf_path),
+        "lsf_sha256": hashlib.sha256(lsf_path.read_bytes()).hexdigest(),
         "lsf_resampling": "PCHIP cumulative native-pixel weights",
         "lsf_kernel_pixels": int(kernel.size),
         "observation_reference": "pg1048_all.dat",
