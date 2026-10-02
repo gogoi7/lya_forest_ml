@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-02T18:17:41.404571+00:00",
+  "models": [
+    "EX0",
+    "EX1",
+    "EX2",
+    "EX3"
+  ],
+  "n_test_sightlines": 2010,
+  "n_test_bundles": 134,
+  "dv_lp1_kms": 6.906077348066298,
+  "census_settings": {
+    "flux_cuts": [
+      0.85,
+      0.95
+    ],
+    "match_kms": 30.0,
+    "strong_cut": 0.5,
+    "periodic": true,
+    "distance_reference": "Edges of same-model strong-bin regions",
+    "path_per_los_kms": 2500.0,
+    "n_los": 2010,
+    "matching": "Maximum cardinality, then minimum total separation"
+  },
+  "bootstrap_settings": {
+    "n_draws": 50000,
+    "seed": 20261003,
+    "batch_size": 1000,
+    "n_bundles": 134,
+    "rng": "PCG64",
+    "interval": "Pointwise 2.5th-97.5th percentile",
+    "resampling": "Shared whole-bundle draws across models and cuts",
+    "scope": "Conditional on the frozen calibration and simulation volumes"
+  },
+  "source_lp1_metadata": {
+    "EX0": {
+      "dv_out": 6.906077348066298,
+      "los_sha256": "ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7",
+      "lsf_cenwave": 1291,
+      "lsf_configuration_provisional": true,
+      "lsf_dispersion_A_per_pixel": 0.00997,
+      "lsf_file": "/Users/antareepgogoi/Codes/lya_forest_ml/data/reference/cos_lsf/aa_LSFTable_G130M_1291_LP1_cn.dat",
+      "lsf_grating": "G130M",
+      "lsf_kernel_pixels": 739,
+      "lsf_lifetime_position": 1,
+      "lsf_model": "tabulated_cos",
+      "lsf_resampling": "PCHIP cumulative native-pixel weights",
+      "lsf_sha256": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+      "lsf_wavelength_A": 1300.0,
+      "max_mean_flux_error": 5.551115123125783e-15,
+      "model": "EX0",
+      "n_los": 10000,
+      "n_pixels_in": 2499,
+      "n_pixels_out": 362,
+      "noise_added": false,
+      "noise_sigma": null,
+      "observation_range_A": [
+        1220.0,
+        1380.0
+      ],
+      "observation_reference": "pg1048_all.dat",
+      "redshift": 0.0,
+      "sampling_convention": "median valid adjacent pixel velocity spacing",
+      "signature": {
+        "cache_schema": 1,
+        "files_sha256": {
+          "calibration": "998df0a023538d605e735878ac6cb470840f9e4de79628a9aa4d26246a591adf",
+          "forward_model_code": "7c398d329f3acfe26bdbfc7b67a467f3ac441f0ee137255b5fc93e2910ab2931",
+          "instrument_code": "f36912f1b4d846586eba7e78132682d9a47a02f3aa2ca0f9ce2d785241d9b083",
+          "lsf": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+          "manifest": "a66e12b706033c2e4ed57ef54aea54ccc69e6a24c97a260fe09df9d30e312ebd",
+          "spectra": "e2d739f18ccbbe1f9deaec440253e071f5f1081eb50a6d8abe6758dd2dc3972b"
+        },
+        "h5py_version": "3.15.1",
+        "lsf_dispersion_A_per_pixel": 0.00997,
+        "lsf_wavelength_A": 1300.0,
+        "model": "EX0",
+        "n_pixels_out": 362,
+        "numpy_version": "1.26.4",
+        "velocity_length_kms": 2500.0
+      },
+      "tau_scale": 0.970524389797202
+    },
+    "EX1": {
+      "dv_out": 6.906077348066298,
+      "los_sha256": "ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7",
+      "lsf_cenwave": 1291,
+      "lsf_configuration_provisional": true,
+      "lsf_dispersion_A_per_pixel": 0.00997,
+      "lsf_file": "/Users/antareepgogoi/Codes/lya_forest_ml/data/reference/cos_lsf/aa_LSFTable_G130M_1291_LP1_cn.dat",
+      "lsf_grating": "G130M",
+      "lsf_kernel_pixels": 739,
+      "lsf_lifetime_position": 1,
+      "lsf_model": "tabulated_cos",
+      "lsf_resampling": "PCHIP cumulative native-pixel weights",
+      "lsf_sha256": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+      "lsf_wavelength_A": 1300.0,
+      "max_mean_flux_error": 5.218048215738236e-15,
+      "model": "EX1",
+      "n_los": 10000,
+      "n_pixels_in": 2499,
+      "n_pixels_out": 362,
+      "noise_added": false,
+      "noise_sigma": null,
+      "observation_range_A": [
+        1220.0,
+        1380.0
+      ],
+      "observation_reference": "pg1048_all.dat",
+      "redshift": 0.0,
+      "sampling_convention": "median valid adjacent pixel velocity spacing",
+      "signature": {
+        "cache_schema": 1,
+        "files_sha256": {
+          "calibration": "998df0a023538d605e735878ac6cb470840f9e4de79628a9aa4d26246a591adf",
+          "forward_model_code": "7c398d329f3acfe26bdbfc7b67a467f3ac441f0ee137255b5fc93e2910ab2931",
+          "instrument_code": "f36912f1b4d846586eba7e78132682d9a47a02f3aa2ca0f9ce2d785241d9b083",
+          "lsf": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+          "manifest": "a66e12b706033c2e4ed57ef54aea54ccc69e6a24c97a260fe09df9d30e312ebd",
+          "spectra": "7a906da16bf64b7e7afccd0cd88eb69260a4e26eb542f04f5f7267b83f19f822"
+        },
+        "h5py_version": "3.15.1",
+        "lsf_dispersion_A_per_pixel": 0.00997,
+        "lsf_wavelength_A": 1300.0,
+        "model": "EX1",
+        "n_pixels_out": 362,
+        "numpy_version": "1.26.4",
+        "velocity_length_kms": 2500.0
+      },
+      "tau_scale": 1.0675314406392244
+    },
+    "EX2": {
+      "dv_out": 6.906077348066298,
+      "los_sha256": "ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7",
+      "lsf_cenwave": 1291,
+      "lsf_configuration_provisional": true,
+      "lsf_dispersion_A_per_pixel": 0.00997,
+      "lsf_file": "/Users/antareepgogoi/Codes/lya_forest_ml/data/reference/cos_lsf/aa_LSFTable_G130M_1291_LP1_cn.dat",
+      "lsf_grating": "G130M",
+      "lsf_kernel_pixels": 739,
+      "lsf_lifetime_position": 1,
+      "lsf_model": "tabulated_cos",
+      "lsf_resampling": "PCHIP cumulative native-pixel weights",
+      "lsf_sha256": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+      "lsf_wavelength_A": 1300.0,
+      "max_mean_flux_error": 5.329070518200751e-15,
+      "model": "EX2",
+      "n_los": 10000,
+      "n_pixels_in": 2499,
+      "n_pixels_out": 362,
+      "noise_added": false,
+      "noise_sigma": null,
+      "observation_range_A": [
+        1220.0,
+        1380.0
+      ],
+      "observation_reference": "pg1048_all.dat",
+      "redshift": 0.0,
+      "sampling_convention": "median valid adjacent pixel velocity spacing",
+      "signature": {
+        "cache_schema": 1,
+        "files_sha256": {
+          "calibration": "998df0a023538d605e735878ac6cb470840f9e4de79628a9aa4d26246a591adf",
+          "forward_model_code": "7c398d329f3acfe26bdbfc7b67a467f3ac441f0ee137255b5fc93e2910ab2931",
+          "instrument_code": "f36912f1b4d846586eba7e78132682d9a47a02f3aa2ca0f9ce2d785241d9b083",
+          "lsf": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+          "manifest": "a66e12b706033c2e4ed57ef54aea54ccc69e6a24c97a260fe09df9d30e312ebd",
+          "spectra": "fe46bbd76f8730b5b6373aa7e4628ebce64e06a6f41c4f72b7c3e3ef15b727b3"
+        },
+        "h5py_version": "3.15.1",
+        "lsf_dispersion_A_per_pixel": 0.00997,
+        "lsf_wavelength_A": 1300.0,
+        "model": "EX2",
+        "n_pixels_out": 362,
+        "numpy_version": "1.26.4",
+        "velocity_length_kms": 2500.0
+      },
+      "tau_scale": 0.8768067115476661
+    },
+    "EX3": {
+      "dv_out": 6.906077348066298,
+      "los_sha256": "ddffd1d43106cb33e09b7d0f0ae5d9e1db6b8713639ec6d37275dc5b78a4a4c7",
+      "lsf_cenwave": 1291,
+      "lsf_configuration_provisional": true,
+      "lsf_dispersion_A_per_pixel": 0.00997,
+      "lsf_file": "/Users/antareepgogoi/Codes/lya_forest_ml/data/reference/cos_lsf/aa_LSFTable_G130M_1291_LP1_cn.dat",
+      "lsf_grating": "G130M",
+      "lsf_kernel_pixels": 739,
+      "lsf_lifetime_position": 1,
+      "lsf_model": "tabulated_cos",
+      "lsf_resampling": "PCHIP cumulative native-pixel weights",
+      "lsf_sha256": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+      "lsf_wavelength_A": 1300.0,
+      "max_mean_flux_error": 5.551115123125783e-15,
+      "model": "EX3",
+      "n_los": 10000,
+      "n_pixels_in": 2499,
+      "n_pixels_out": 362,
+      "noise_added": false,
+      "noise_sigma": null,
+      "observation_range_A": [
+        1220.0,
+        1380.0
+      ],
+      "observation_reference": "pg1048_all.dat",
+      "redshift": 0.0,
+      "sampling_convention": "median valid adjacent pixel velocity spacing",
+      "signature": {
+        "cache_schema": 1,
+        "files_sha256": {
+          "calibration": "998df0a023538d605e735878ac6cb470840f9e4de79628a9aa4d26246a591adf",
+          "forward_model_code": "7c398d329f3acfe26bdbfc7b67a467f3ac441f0ee137255b5fc93e2910ab2931",
+          "instrument_code": "f36912f1b4d846586eba7e78132682d9a47a02f3aa2ca0f9ce2d785241d9b083",
+          "lsf": "da05757685f319ec5246a29266b8ba784ce8d87bf977813e7f438b21e8822b01",
+          "manifest": "a66e12b706033c2e4ed57ef54aea54ccc69e6a24c97a260fe09df9d30e312ebd",
+          "spectra": "69373a239eed8a367208fa9f3a4a459123705aa72f13d533ab76310e46d42462"
+        },
+        "h5py_version": "3.15.1",
+        "lsf_dispersion_A_per_pixel": 0.00997,
+        "lsf_wavelength_A": 1300.0,
+        "model": "EX3",
+        "n_pixels_out": 362,
+        "numpy_version": "1.26.4",
+        "velocity_length_kms": 2500.0
+      },
+      "tau_scale": 1.1073057870014982
+    }
+  },
+  "source_code_file": "src/cos_absorbers.py",
+  "source_code_sha256": "801cc228af99a2174508f0d8ae9b0390c133b309ac537267b322a2f0cb1eeb52",
+  "versions": {
+    "python": "3.10.19",
+    "numpy": "1.26.4",
+    "pandas": "2.3.3",
+    "scipy": "1.15.3",
+    "matplotlib": "3.10.6"
+  },
+  "definitions": {
+    "unique_all": "Unmatched against every other model.",
+    "isolated_broad": "No neighboring detection in any other model within the matching window, using the broadest flux-cut catalog.",
+    "depth": "1 - F_min",
+    "distance": "Periodic distance to the nearest same-model strong-complex edge; zero inside a complex; missing when none exists.",
+    "distance_plot_population": "Outside strong complexes, on sightlines containing at least one same-model strong complex."
+  },
+  "scope": "Noiseless LP1 census. Bootstrap intervals are pointwise and conditional on the frozen calibration, test split, and simulation volumes. Depth and distance CDFs are descriptive."
+}

@@ -2,9 +2,9 @@
 
 ## Current status
 
-**The LP1 S/N sweep, paired-sightline meeting viewer, and known-field
-oracle analysis are complete. The full observing configuration remains
-provisional.**
+**The LP1 S/N sweep, paired-sightline meeting viewer, known-field
+oracle analysis, and model-unique absorber census are complete.
+The full observing configuration remains provisional.**
 
 The observed spectrum `pg1048_all.dat` provides representative sampling
 and reported-error estimates. Classification results below come from
@@ -235,6 +235,133 @@ Results are under `outputs/cos_lsf_snr/oracle/`:
 
 Each PDF has a corresponding PNG.
 
+## Model-unique absorber census
+
+`src/cos_absorbers.py` analyzes the noiseless LP1 spectra for the same
+2010 held-out paired sightlines and frozen mean-flux calibration.
+Each sightline spans 2500 km/s, giving 5,025,000 km/s of path per model.
+All sightlines contribute to the exposure, including those with no
+detections.
+
+### Detection and matching
+
+- Detect periodic local minima with F < 0.85 and F < 0.95.
+  Flat minima count once; no additional prominence cut is applied.
+- The thresholds define nested detection catalogs. Matching is
+  recomputed at each threshold.
+- Match each model pair independently on the same sightline, allowing
+  circular velocity separations of at most 30 km/s.
+- Matching is one-to-one: maximize the number of matches, then minimize
+  their total separation.
+- `unique_all` identifies detections unmatched against every other model.
+- `isolated_all` additionally requires no eligible neighboring detection
+  in any other model at the current threshold. This removes cases where
+  a candidate exists but loses a one-to-one matching competition.
+- The stricter `isolated_broad_rate` requires no neighboring detection
+  in any other model even in the broader F < 0.95 catalog.
+
+Depth is 1 - F_min. Strong complexes are contiguous periodic regions
+of same-model bins with F < 0.5. Distance is measured to the nearest
+complex edge: zero inside a complex and missing when the sightline
+contains no strong complex.
+
+The distance CDFs and outside-distance medians include only detections
+outside strong complexes on sightlines containing at least one.
+Depth and distance CDFs are normalized within each displayed subset.
+
+### Census results
+
+Rates are detections per 10,000 km/s. The final column counts detections
+with no other-model neighbor even at F < 0.95.
+
+| Flux cut | Model | Detected | Unique against all | Unique rate | No neighbor at F < 0.95 |
+|---|---|---:|---:|---:|---:|
+| 0.85 | EX0 | 3076 | 116 | 0.231 | 46 |
+| 0.85 | EX1 | 3047 | 169 | 0.336 | 63 |
+| 0.85 | EX2 | 3087 | 140 | 0.279 | 49 |
+| 0.85 | EX3 | 3278 | 306 | 0.609 | 117 |
+| 0.95 | EX0 | 6193 | 199 | 0.396 | 189 |
+| 0.95 | EX1 | 6027 | 264 | 0.525 | 251 |
+| 0.95 | EX2 | 6245 | 169 | 0.336 | 159 |
+| 0.95 | EX3 | 6784 | 527 | 1.049 | 506 |
+
+### Paired uncertainty
+
+The census uses 50,000 whole-bundle bootstrap resamples with PCG64
+seed 20261003. Each draw samples 134 held-out bundle IDs with replacement,
+retaining their 15 sightlines and corresponding data from every model.
+The same draws are shared across models, thresholds, and metrics.
+
+Counts and sampled path lengths are pooled before calculating rates.
+Unique percentages use pooled unique and detected counts. Contrasts
+are calculated within each shared draw. Intervals are pointwise
+2.5th–97.5th percentiles.
+
+EX3 rate excesses are positive against every other model at both cuts,
+including under the stricter isolation criterion:
+
+| Flux cut | Comparison | Unique-rate difference [95% interval] | Strict-isolation rate difference [95% interval] |
+|---|---|---:|---:|
+| 0.85 | EX3 - EX0 | 0.378 [0.293, 0.468] | 0.141 [0.096, 0.189] |
+| 0.85 | EX3 - EX1 | 0.273 [0.181, 0.368] | 0.107 [0.060, 0.155] |
+| 0.85 | EX3 - EX2 | 0.330 [0.243, 0.418] | 0.135 [0.086, 0.187] |
+| 0.95 | EX3 - EX0 | 0.653 [0.559, 0.748] | 0.631 [0.541, 0.720] |
+| 0.95 | EX3 - EX1 | 0.523 [0.420, 0.627] | 0.507 [0.408, 0.609] |
+| 0.95 | EX3 - EX2 | 0.712 [0.607, 0.820] | 0.691 [0.587, 0.796] |
+
+Both difference columns have units of detections per 10,000 km/s.
+The intervals are conditional on the frozen calibration, split, and
+current simulation volumes.
+
+### Patterns and interpretation
+
+EX3 has the strongest excess of model-unique detections, and that
+excess persists after excluding matching competition and neighbors
+detected only at the weaker threshold.
+
+Across all four models, unique detections generally favor shallower
+troughs than the full detection population. Median unique depths are
+0.18–0.23 at F < 0.85 and 0.07–0.08 at F < 0.95. EX3's depth and
+strong-complex proximity distributions overlap those of the other models.
+
+About 53–61% of unique detections occur on sightlines without any
+same-model strong complex. These detections are excluded from the
+conditional distance CDFs.
+
+At F < 0.95, EX1 has a smaller conditional median distance to a strong
+complex: 328 km/s, compared with 442–504 km/s for the other models.
+This is an exploratory descriptive result; uncertainty in the depth
+and distance distributions has not been quantified.
+
+The clearest supported model pattern is therefore EX3's incidence
+excess. Its physical origin remains to be established. Uniqueness
+depends on the flux threshold, matching window, and paired simulated
+fields; assigning this label directly to an unknown observed sightline
+would require additional information.
+
+### Workflow and outputs
+
+Run the census, bootstrap, plotting, and export cells in
+`notebooks/cos_obs.ipynb` after constructing `overlay_data`.
+The module entry points are `build_absorber_census`,
+`bootstrap_absorber_rates`, and `plot_absorber_patterns`.
+
+Results are under `outputs/cos_lsf_snr/absorbers/`:
+
+- `summary/absorber_catalog.csv`: minima and their depth/environment measures.
+- `summary/absorber_detections.csv`: threshold-specific uniqueness flags.
+- `summary/absorber_pair_status.csv`: directed matches and candidate diagnostics.
+- `summary/absorber_los_counts.csv`: counts and exposure for every sightline.
+- `summary/absorber_summary.csv`: model-level census and environment summaries.
+- `summary/absorber_pair_summary.csv`: directed pairwise unmatched counts.
+- `summary/absorber_rates.csv`: rates, unique percentages, and intervals.
+- `summary/absorber_contrasts.csv`: all paired model contrasts and intervals.
+- `summary/absorber_bundle_counts.csv`: counts and exposure used for resampling.
+- `summary/absorber_metadata.json`: settings, source metadata, code checksum,
+  package versions, and definitions.
+- `figures/absorber_patterns.pdf`: incidence, depth, and proximity panels.
+- `figures/absorber_patterns.png`: corresponding raster figure.
+
 ## Earlier single-noise pilot
 
 Both conditions use the same LP1 response, 362-pixel output grid, frozen
@@ -397,6 +524,8 @@ It covers:
 6. Accuracy versus S/N, with paired bootstrap intervals and seed scatter.
 7. The paired-sightline viewer with selectable noise and template ranking.
 8. Known-field oracle accuracy, N95 and the pooled flux split.
+9. Model-unique absorber census, paired incidence contrasts, and depth/
+   strong-complex proximity distributions.
 
 The inspection candidates use flux below 0.85 and complete, non-overlapping
 ±250 km/s windows. Centers are selected flux minima. Error bars use the

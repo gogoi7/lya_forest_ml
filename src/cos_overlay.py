@@ -238,7 +238,7 @@ def make_overlay_viewer(data):
     score_panel = widgets.HTML()
     errors = widgets.Output()
 
-    figure = go.FigureWidget(make_subplots(
+    figure = make_subplots(
         rows=3,
         cols=1,
         shared_xaxes=True,
@@ -248,7 +248,7 @@ def make_overlay_viewer(data):
             "LP1 + rebin",
             "LP1 differences: ΔF = F(EXi) − F(EX0)",
         ],
-    ))
+    )
 
     trace_ids = {"native": [], "lp1": [], "delta": []}
 
@@ -609,6 +609,9 @@ def make_overlay_viewer(data):
     )
 
     rerank()
+
+    # Create the widget after all traces and initial values are ready.
+    figure = go.FigureWidget(figure)
 
     def control_row(children):
         return widgets.HBox(
