@@ -2,9 +2,12 @@
 
 ## Current status
 
-**The LP1 S/N sweep, paired-sightline meeting viewer, known-field
-oracle analysis, and model-unique absorber census are complete.
-The full observing configuration remains provisional.**
+**Completed results include the LP1 S/N sweep, paired-sightline viewer,
+known-field oracle, model-unique absorber census, flux PDF/power
+comparisons, and noisy strong-absorber incidence, stacks and asymmetry.
+The tuned per-chunk classifier notebook is prepared; its scientific
+results have not yet been reported. The observing configuration and
+observational masking validation remain provisional.**
 
 The observed spectrum `pg1048_all.dat` provides representative sampling
 and reported-error estimates. Classification results below come from
@@ -608,3 +611,112 @@ python -m src.summarize_cos_resolution \
 The next scientific priorities are to confirm the observational setup,
 establish contamination masks and usable path lengths, and test more
 realistic instrument/noise models.
+
+## October 2026: flux statistics and observable strong absorbers
+
+These analyses retain the frozen z = 0 mean-flux calibration, LP1
+response, and original held-out sightlines. Figures labeled with
+1,113 chunks use nominal sample-size scaling. They are conditional
+mock comparisons, not detections in the observed sample.
+
+### Flux PDF and power
+
+The noisy flux-PDF comparison shows the largest displayed contrast
+for EX2–EX3. Its cumulative diagonal chi-squared adds correlated
+bin contributions and must not be interpreted as a joint detection
+significance.
+
+For the power comparison, usable bins end before the first bin in
+which noise contributes more than 50% of total power.
+
+| S/N per resel | Last usable bin edge [s/km] | First noise-dominated bin center [s/km] |
+|---|---:|---:|
+| 20 | 0.0569 | 0.0653 |
+| 50 | 0.0956 | 0.1106 |
+
+These cutoffs are identical across EX0–EX3. Each power ratio
+P_model/P_EX0 is restricted to the shared usable k-range:
+the smaller of the model's and EX0's cutoff.
+
+EX3's high-k excess appears in both native and noiseless LP1 power
+ratios. However, the LP1 response strongly attenuates absolute power
+on those scales. Added noise then drives the total-power ratios
+toward unity. Preserving a noiseless ratio does not establish
+observational recoverability.
+
+Notebook: `notebooks/cos_flux_pdf.ipynb`.
+
+### Noisy strong-absorber selection
+
+- Find local minima of the three-bin boxcar-smoothed noisy flux.
+- Require F_s < 0.85 and (1 - F_s)/(sigma_bin/sqrt(3)) >= 3.
+- Merge nearby candidates within 50 km/s, retaining the deepest first.
+- Extract 87 unsmoothed bins around each retained center, approximately
+  ±300 km/s, wrapping periodically in mocks.
+- Assign depth bins using the selected smoothed minimum:
+  0.6 <= F_min < 0.85, 0.3 <= F_min < 0.6, and F_min < 0.3.
+
+At low S/N, the significance requirement imposes a stricter effective
+depth cut. Incidence therefore need not vary monotonically with S/N.
+
+### Observable incidence
+
+EX3 has a positive estimated incidence excess over EX0 at every
+tested S/N, but every reported 95% interval includes zero.
+
+| S/N per resel | EX3 − EX0 per 10,000 km/s | 95% interval |
+|---|---:|---:|
+| 10 | 0.0915 | [−0.4166, 0.6184] |
+| 15 | 0.2481 | [−0.2761, 0.7883] |
+| 20 | 0.2872 | [−0.1835, 0.7686] |
+| 30 | 0.3516 | [−0.1004, 0.8196] |
+| 50 | 0.3569 | [−0.0924, 0.8142] |
+| 80 | 0.3748 | [−0.0397, 0.8027] |
+
+Intervals use paired whole-bundle bootstrap comparisons with nominal
+1,113-chunk scaling. This observable incidence statistic differs from
+the earlier noiseless, paired-field model-unique census; the two
+results do not contradict each other.
+
+### Stacks and asymmetry
+
+Depth-binned stacks at S/N 20 and 50 show modest model-dependent
+profile differences with substantial uncertainty. The displayed
+95% bands are pointwise, not an overall profile-significance test.
+Selection on noisy minima affects centring and depth membership;
+identical selection rules do not guarantee identical selection bias.
+
+The asymmetry statistic is
+
+A = (EW_red - EW_blue) / EW,
+
+integrated over ±300 km/s, with half the central bin assigned to
+each side. Signed EW uses unclipped noisy flux. The displayed
+positive-EW distributions peak near zero and overlap closely across
+models; no clear separation is visible.
+
+Notebook: `notebooks/cos_strong_absorbers.ipynb`.
+Outputs: `outputs/cos_lsf_snr/strong_absorbers/`.
+
+The notebook exports `sujin_strong_absorber_windows.npz`, containing
+windows, model labels, parent LOS/bundle identifiers, original split,
+S/N, noise seed, depth and asymmetry metadata. Downstream splitting
+must keep copies and overlapping windows from a parent LOS together.
+
+### Tuned per-chunk classifier: prepared, results pending
+
+Notebook: `notebooks/cos_per_chunk_tuned.ipynb`.
+
+The workflow reuses cached 46-feature sightline arrays, trains with
+all three noise realizations, and reserves separate tuning and
+isotonic-calibration LOS within the 20% training hold-out.
+
+It implements S/N 20 hyperparameter tuning, test reliability diagrams,
+accuracy versus batch size, N95, seed scatter, and an N = 15 comparison
+on the original held-out bundles. Gaussian extrapolation is checked
+against direct without-replacement draws before use.
+
+Scientific results are not yet included in this checkpoint. The
+1,113-chunk mixed-S/N forecast additionally requires the QA's actual
+S/N counts and remains conditional on z = 0 mocks and independent
+chunks.

@@ -2,7 +2,23 @@
 
 This repository contains machine learning models for classifying specific 1D Lyman-Alpha forest transmission spectra into their underlying cosmological simulations (EX1 vs EX3).
 
-## Key Results
+## Current COS analysis
+
+The current experiment compares EX0–EX3 at z = 0 after frozen
+mean-flux calibration and COS LP1 processing.
+
+With 15-sightline bundles, four-class accuracy is 51.68% without
+added noise and approximately 31–40% across S/N 10–80 per resolution
+element. EX2–EX3 is the strongest binary comparison; EX0–EX1 remains
+near chance.
+
+Flux statistics and noisy strong-absorber analyses are documented in
+[the COS experiment README](experiments/cos_lsf_snr/README.md).
+The tuned per-chunk classifier workflow is prepared, with results
+pending. These mock results are distinct from the historical
+benchmark below.
+
+## Historical benchmark: EX1–EX3 at z = 0.1
 The champion model is an **XGBoost Classifier** trained on a compact, highly engineered set of physical representations. 
 
 - **Batched Input (Champion)**: By grouping spectra into batches of 10 and computing the mean and standard deviation of their features, the model achieves a test accuracy of **91.00%** on separating EX1 from EX3 at $z=0.1$.
