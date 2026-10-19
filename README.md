@@ -14,9 +14,14 @@ near chance.
 
 Flux statistics and noisy strong-absorber analyses are documented in
 [the COS experiment README](experiments/cos_lsf_snr/README.md).
-The tuned per-chunk classifier workflow is prepared, with results
-pending. These mock results are distinct from the historical
-benchmark below.
+
+The raw per-chunk aggregation rerun is complete: Gaussian checks pass
+in 27/30 task–S/N cases, and N95 is available in 18/30. See the
+[raw aggregation results](experiments/cos_lsf_snr/raw_aggregation_results.md)
+for results, remaining failure reasons and the cache-only workflow.
+Observational S/N-mixture forecasts remain provisional pending
+mask/fill validation. These z = 0 mock results are distinct from
+the historical benchmark below.
 
 ## Historical benchmark: EX1–EX3 at z = 0.1
 The champion model is an **XGBoost Classifier** trained on a compact, highly engineered set of physical representations. 

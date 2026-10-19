@@ -4,10 +4,10 @@
 
 **Completed results include the LP1 S/N sweep, paired-sightline viewer,
 known-field oracle, model-unique absorber census, flux PDF/power
-comparisons, and noisy strong-absorber incidence, stacks and asymmetry.
-The tuned per-chunk classifier notebook is prepared; its scientific
-results have not yet been reported. The observing configuration and
-observational masking validation remain provisional.**
+comparisons, noisy strong-absorber analyses, and the tuned per-chunk
+raw aggregation rerun. Gaussian checks pass in 27/30 task–S/N cases,
+and N95 is available in 18/30. Observational configuration, final
+sample selection and mask/fill validation remain provisional.**
 
 The observed spectrum `pg1048_all.dat` provides representative sampling
 and reported-error estimates. Classification results below come from
@@ -646,6 +646,16 @@ observational recoverability.
 
 Notebook: `notebooks/cos_flux_pdf.ipynb`.
 
+### Strong-absorber update: 19 October 2026
+
+The corrected recovery-threshold detector, 433,195-window export
+(106.9 MB), fixed sightline roles and completed depth-only baseline
+are documented in [the updated checkpoint](strong_absorber_results.md).
+
+The strong-absorber selection, incidence and profile summaries below
+describe the earlier 50 km/s merging run. Consult the updated checkpoint
+and corrected run outputs for the revised workflow.
+
 ### Noisy strong-absorber selection
 
 - Find local minima of the three-bin boxcar-smoothed noisy flux.
@@ -703,20 +713,32 @@ windows, model labels, parent LOS/bundle identifiers, original split,
 S/N, noise seed, depth and asymmetry metadata. Downstream splitting
 must keep copies and overlapping windows from a parent LOS together.
 
-### Tuned per-chunk classifier: prepared, results pending
+### Tuned per-chunk classifier: raw aggregation completed
 
-Notebook: `notebooks/cos_per_chunk_tuned.ipynb`.
+Training and the executed isotonic reference remain in
+`notebooks/cos_per_chunk_tuned.ipynb`.
 
-The workflow reuses cached 46-feature sightline arrays, trains with
-all three noise realizations, and reserves separate tuning and
-isotonic-calibration LOS within the 20% training hold-out.
+The cache-only rerun uses `notebooks/cos_per_chunk_raw_analysis.ipynb`
+and `notebooks/raw_combination_analysis_step.py`. It sums saved raw
+XGBoost log-probabilities for both batch curves and the exact N = 15
+comparison, without training or feature extraction.
 
-It implements S/N 20 hyperparameter tuning, test reliability diagrams,
-accuracy versus batch size, N95, seed scatter, and an N = 15 comparison
-on the original held-out bundles. Gaussian extrapolation is checked
-against direct without-replacement draws before use.
+Gaussian checks pass in 27/30 task–S/N cases, compared with 4/30 for
+isotonic aggregation. N95 is available in 18/30, compared with 6/30.
+The reference calculation reproduces all old saved Gaussian checks
+and N95 results.
 
-Scientific results are not yet included in this checkpoint. The
-1,113-chunk mixed-S/N forecast additionally requires the QA's actual
-S/N counts and remains conditional on z = 0 mocks and independent
-chunks.
+The original grouped split, EPS, sampling procedure, Gaussian
+thresholds, full covariance and N95 safeguards are retained.
+Corrected outputs are stored separately under
+`outputs/cos_lsf_snr/perchunk_tuned/raw_combination/`.
+
+Observational QA identifies 52 spectra and 1,139 coverage candidates.
+The earlier assumed total of 1,113 is no longer imposed.
+Exported S/N mixtures provide provisional forecasts under unfilled
+z = 0 mocks and independent chunks; masking and filling remain
+unvalidated.
+
+See [raw aggregation results](raw_aggregation_results.md) for the
+N95 table, paired N = 15 comparisons, evidence-tail diagnostics,
+observational scenarios and provenance.
