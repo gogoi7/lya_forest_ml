@@ -47,3 +47,53 @@ python src/train_xgboost.py
 ## Explorations
 - **Deep Learning**: A PyTorch ResNet, a 1D CNN, and an MLP were evaluated but underperformed the XGBoost model (~60.9% accuracy max). Structured tabular data with explicit, highly-distinct physical meanings remains the domain of Gradient Boosted Trees.
 - **Alternative Binning**: Weighted Power Spectrum binning and uniform CDF adaptive binning were explored. Standard Log-Spaced boundaries proved optimal at preserving macro-scale power while sharply suppressing high-k noise in a way decision trees can leverage efficiently.
+
+## Checkpoint: 2026-11-05
+
+### Figures and spectrum viewer
+
+- Compiled the current z≈0 Figures 1–3 into
+  `outputs/galaxy_absorption/full/galaxy_figures_1-3_z0.pdf`.
+- Selected the comparison examples:
+  - Low-sSFR: EX0 halo 58, ray 2811.
+  - Star-forming: EX0 halo 77, ray 3738.
+- Added `src/galaxy_spectrum_viewer.py`, an offline viewer for comparing
+  any two sampled sightlines across all four matched models.
+- Each panel independently selects mass range, EX0 star-formation type,
+  b/Rvir range, viewing axis, halo, sightline, spectrum mode, and S/N.
+  Impact-parameter filters select existing rays; they do not interpolate
+  new sightlines.
+- Available modes: native noiseless, COS LP1 noiseless, and COS LP1
+  with Gaussian noise at arbitrary positive S/N per resolution element.
+  Changing S/N rescales a fixed noise realization; the default seed is 42.
+- Model labels:
+  - EX0: fiducial IllustrisTNG.
+  - EX1: extreme AGN feedback.
+  - EX2: extreme supernova feedback.
+  - EX3: no feedback.
+- Spectra use each model's matched-galaxy velocity frame and shared plot
+  scales. Annotations include halo/ray IDs, mass, galaxy type, impact
+  parameter, axis, redshift, spectrum settings, and equivalent widths.
+- Supports PNG export and self-contained interactive HTML for a selected
+  pair. The full-sample viewer uses an accompanying indexed `.bin` file.
+- Build the viewer from the loaded `full` and `geometry` objects in
+  `notebooks/03_experiments.ipynb`. Default output:
+  `outputs/galaxy_absorption/full/viewer/`.
+
+### Local cutouts and other snapshots
+
+- Added `src/extract_galaxy_cutouts.py` for chunked local extraction of
+  galaxy-centred gas cutouts for the selected comparison halos.
+- Updated `scripts/galaxy_full.sh` and `scripts/galaxy_match.slurm` to
+  accept a snapshot number while retaining snapshot 90 as the default.
+- Matching jobs for the additional redshifts completed successfully.
+
+### Resume later
+
+- Generate and inspect the local cutouts, then build the spatial viewer
+  connecting the selected spectra to their surrounding gas.
+- Continue the spectra and absorption analysis for snapshots 86 and 80.
+- Complete the intrinsic N_HI and random-sightline comparisons from the
+  original figure plan.
+
+Large simulation data and generated viewer products remain outside Git.

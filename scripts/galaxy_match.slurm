@@ -9,8 +9,17 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=axg210023@utdallas.edu
 
-set -e
+set -euo pipefail
 cd /scratch/08488/anta1997/EX_IllustrisTNG
+
+snapnum="${1:-90}"
+printf -v snap_tag '%03d' "$snapnum"
+
+if [[ "$snapnum" == "90" ]]; then
+    sample="ex0_sample_z0.csv"
+else
+    sample="ex0_sample_${snap_tag}.csv"
+fi
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -19,6 +28,6 @@ export OPENBLAS_NUM_THREADS=1
 /usr/bin/python -u galaxy_absorption.py \
     --task match \
     --root /scratch/08488/anta1997/EX_IllustrisTNG \
-    --snapnum 90 \
-    --sample ex0_sample_z0.csv \
-    --output galaxy_matches_090.csv
+    --snapnum "$snapnum" \
+    --sample "$sample" \
+    --output "galaxy_matches_${snap_tag}.csv"
